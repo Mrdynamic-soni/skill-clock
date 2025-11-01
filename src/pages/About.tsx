@@ -1,4 +1,4 @@
-import { Clock, Shield, Database, Github } from 'lucide-react';
+import { Clock, Shield, Database } from 'lucide-react';
 
 export const About = () => {
   return (

@@ -426,7 +426,6 @@ export const useAppStore = create<AppState>()(
 
 // Selectors
 export const useSkills = () => useAppStore(state => state.skills);
-export type { Priority };
 export const useEntries = () => useAppStore(state => state.entries);
 export const useProfile = () => useAppStore(state => state.profile);
 

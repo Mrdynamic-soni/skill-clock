@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore, useSkills } from '../store/appStore';
-import { Clock, Calendar, Play, Pause, Square, Edit3, Plus, Filter } from 'lucide-react';
+import { Clock, Calendar, Play, Pause, Square, Edit3, Plus } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 
 export const Sessions = () => {

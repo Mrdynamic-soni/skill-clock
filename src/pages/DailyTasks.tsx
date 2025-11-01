@@ -44,7 +44,7 @@ export const DailyTasks = () => {
         : task
     );
     
-    useAppStore.setState(state => ({ dailyTasks: updatedTasks }));
+    useAppStore.setState(() => ({ dailyTasks: updatedTasks }));
     
     setEditingTask(null);
     setEditTask({ title: '', description: '' });

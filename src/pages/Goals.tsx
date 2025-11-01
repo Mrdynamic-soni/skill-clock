@@ -155,7 +155,7 @@ export const Goals = () => {
     return Math.min((totalHours / goal.targetHours) * 100, 100);
   };
 
-  const isOverdue = (deadline: string) => new Date(deadline) < new Date();
+
 
   return (
     <div className="space-y-6">
@@ -423,7 +423,7 @@ export const Goals = () => {
           filteredGoals.map((goal) => {
             const skill = skills.find((s) => s.id === goal.skillId);
             const progress = getProgressForGoal(goal);
-            const overdue = isOverdue(goal.deadline);
+
             const dailyStatus = getDailyStatus(goal);
             const todayHours = getTodayHours(goal.skillId);
 
