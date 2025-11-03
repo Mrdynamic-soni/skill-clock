@@ -180,6 +180,7 @@ export const AuthForm = () => {
           >
             SkillClock
           </motion.h1>
+
           <motion.p
             className="mt-2 text-gray-600 font-medium"
             initial={{ opacity: 0 }}
@@ -188,6 +189,22 @@ export const AuthForm = () => {
           >
             {isLogin ? "✨ Welcome back!" : "🚀 Start your journey"}
           </motion.p>
+          <motion.div
+            className="mt-4 text-center max-w-sm mx-auto"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            <p className="text-sm text-gray-500 leading-relaxed">
+              Track your skill development hours, set goals, and boost
+              productivity with our intuitive time tracking platform.
+            </p>
+            <div className="flex justify-center gap-4 mt-3 text-xs text-gray-400">
+              <span>⏱️ Smart Timer</span>
+              <span>📊 Analytics</span>
+              <span>🎯 Goal Setting</span>
+            </div>
+          </motion.div>
         </div>
 
         {/* Main Card */}
