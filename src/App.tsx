@@ -85,12 +85,22 @@ const App = () => {
   const { checkAuthStatus } = useAppStore();
 
   useEffect(() => {
+    // Handle OAuth callback hash
+    if (window.location.hash && window.location.hash.includes('access_token')) {
+      // Clean up the URL hash after OAuth
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    
     checkAuthStatus();
     
     // Handle OAuth callback and auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         checkAuthStatus();
+        // Clean up URL hash if present
+        if (window.location.hash) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
       } else if (event === 'SIGNED_OUT') {
         checkAuthStatus();
       }
