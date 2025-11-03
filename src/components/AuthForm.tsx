@@ -29,15 +29,9 @@ export const AuthForm = () => {
 
     try {
       if (isLogin) {
-        console.log('Attempting login...');
         await login({ email: formData.email, password: formData.password });
-        console.log('Login successful, navigating...');
         showToast('Login successful!', 'success');
-        // Navigate after a short delay to ensure state is updated
-        setTimeout(() => {
-          console.log('Navigating to dashboard...');
-          navigate('/');
-        }, 100);
+        navigate('/');
       } else {
         const result = await register(formData);
         if (result && result.user && !result.session) {
@@ -47,7 +41,7 @@ export const AuthForm = () => {
         } else if (result && result.session) {
           // User created and logged in (confirmations disabled)
           showToast('Registration successful!', 'success');
-          setTimeout(() => navigate('/'), 100);
+          navigate('/');
         }
       }
     } catch (error: any) {

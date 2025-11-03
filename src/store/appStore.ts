@@ -162,9 +162,7 @@ export const useAppStore = create<AppState>()(
 
       login: async (credentials) => {
         try {
-          console.log('Store: Starting login...');
           const result = await apiService.login(credentials);
-          console.log('Store: Login API success, setting auth state...');
           set({ 
             isAuthenticated: true, 
             user: result.user,
@@ -177,11 +175,8 @@ export const useAppStore = create<AppState>()(
               bio: ''
             }
           });
-          console.log('Store: Auth state set, syncing from server...');
           await get().syncFromServer();
-          console.log('Store: Login complete');
         } catch (error) {
-          console.error('Store: Login error:', error);
           throw error;
         }
       },
