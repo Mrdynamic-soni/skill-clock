@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore, useSkills, type Priority } from "../store/appStore";
 import { Plus, Trash2, Edit3 } from "lucide-react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { CustomSelect } from "../components/CustomSelect";
 import { useToast } from "../hooks/useToast";
 
 const priorityColors = {
@@ -10,6 +11,12 @@ const priorityColors = {
   medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
   high: "bg-red-100 text-red-800 border-red-200",
 };
+
+const priorityOptions = [
+  { value: 'low', label: 'Low Priority' },
+  { value: 'medium', label: 'Medium Priority' },
+  { value: 'high', label: 'High Priority' },
+];
 
 export const Skills = () => {
   const [skillName, setSkillName] = useState("");
@@ -89,15 +96,12 @@ export const Skills = () => {
               placeholder="Enter skill name"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <select
+            <CustomSelect
               value={priority}
-              onChange={(e) => setPriority(e.target.value as Priority)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="low">Low Priority</option>
-              <option value="medium">Medium Priority</option>
-              <option value="high">High Priority</option>
-            </select>
+              onChange={(value) => setPriority(value as Priority)}
+              options={priorityOptions}
+              className="min-w-[140px]"
+            />
             <motion.button
               type="submit"
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
@@ -203,20 +207,16 @@ export const Skills = () => {
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <select
+              <CustomSelect
                 value={editingSkill.priority}
-                onChange={(e) =>
+                onChange={(value) =>
                   setEditingSkill({
                     ...editingSkill,
-                    priority: e.target.value as Priority,
+                    priority: value as Priority,
                   })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="low">Low Priority</option>
-                <option value="medium">Medium Priority</option>
-                <option value="high">High Priority</option>
-              </select>
+                options={priorityOptions}
+              />
             </div>
             <div className="flex gap-3 mt-6">
               <button

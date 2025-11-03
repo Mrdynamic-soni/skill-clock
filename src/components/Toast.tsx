@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 interface ToastProps {
   id: string;
   message: string;
-  type: 'success' | 'error' | 'info';
+  type: 'success' | 'error' | 'info' | 'warning';
   onRemove: (id: string) => void;
 }
 
@@ -12,6 +12,7 @@ export const Toast = ({ id, message, type, onRemove }: ToastProps) => {
     success: 'bg-green-500',
     error: 'bg-red-500',
     info: 'bg-blue-500',
+    warning: 'bg-yellow-500',
   }[type];
 
   return (
@@ -28,7 +29,7 @@ export const Toast = ({ id, message, type, onRemove }: ToastProps) => {
 };
 
 interface ToastContainerProps {
-  toasts: Array<{ id: string; message: string; type: 'success' | 'error' | 'info' }>;
+  toasts: Array<{ id: string; message: string; type: 'success' | 'error' | 'info' | 'warning' }>;
   onRemove: (id: string) => void;
 }
 

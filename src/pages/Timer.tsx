@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore, useSkills } from "../store/appStore";
 import { Play, Pause, Square, Clock } from "lucide-react";
 import { useToast } from "../hooks/useToast";
-import { SessionNoteDialog } from "../components/SessionNoteDialog";
+
 
 export const Timer = () => {
   const [selectedSkillId, setSelectedSkillId] = useState("");
@@ -105,7 +105,7 @@ export const Timer = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col p-4">
+    <div className="flex flex-col p-4 pb-20 md:pb-4 min-h-screen">
       {/* Real Time Clock - Centered */}
       <motion.div
         className="bg-gradient-to-br from-gray-900 to-gray-700 rounded-xl shadow-xl p-8 text-white mb-8"
@@ -403,12 +403,44 @@ export const Timer = () => {
         </AnimatePresence>
       </div>
 
-      <SessionNoteDialog
-        isOpen={showNoteDialog}
-        onClose={() => setShowNoteDialog(false)}
-        onSkip={handleSkipNote}
-        onAddNote={handleEndWithNote}
-      />
+      {/* Session Note Modal */}
+      {showNoteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div 
+            className="bg-white rounded-lg p-6 max-w-md w-full"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <h3 className="text-lg font-semibold mb-4">Add Session Note</h3>
+            <p className="text-gray-600 mb-4 text-sm">
+              Would you like to add a note about this session? (Optional)
+            </p>
+            <textarea
+              placeholder="What did you work on? Any insights or achievements..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              rows={4}
+              id="session-note"
+            />
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleSkipNote}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Skip
+              </button>
+              <button
+                onClick={() => {
+                  const note = (document.getElementById('session-note') as HTMLTextAreaElement)?.value;
+                  handleEndWithNote(note?.trim());
+                }}
+                className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg flex-1"
+              >
+                Complete Session
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

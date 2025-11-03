@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
+import { apiService } from '../services/supabaseService';
+import { supabase } from '../lib/supabase';
 
 export type Priority = 'low' | 'medium' | 'high';
 
@@ -71,6 +73,8 @@ export interface DailyTaskLog {
 }
 
 interface AppState {
+  isAuthenticated: boolean;
+  user: any | null;
   skills: Skill[];
   entries: Entry[];
   profile: Profile;
@@ -87,15 +91,24 @@ interface AppState {
     intervals: Array<{ start: number; end?: number }>;
   } | null;
   
+  // Auth actions
+  login: (credentials: { email: string; password: string }) => Promise<void>;
+  register: (userData: { email: string; password: string; name: string }) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
+  syncFromServer: () => Promise<void>;
+  syncToServer: () => Promise<void>;
+  checkAuthStatus: () => Promise<void>;
+  
   // Actions
-  addSkill: (name: string, priority?: Priority) => void;
-  updateSkill: (id: string, updates: Partial<Omit<Skill, 'id'>>) => void;
-  deleteSkill: (id: string) => void;
+  addSkill: (name: string, priority?: Priority) => Promise<void>;
+  updateSkill: (id: string, updates: Partial<Omit<Skill, 'id'>>) => Promise<void>;
+  deleteSkill: (id: string) => Promise<void>;
   
-  addEntry: (payload: Omit<Entry, 'id'>) => void;
-  deleteEntry: (id: string) => void;
+  addEntry: (payload: Omit<Entry, 'id'>) => Promise<void>;
+  deleteEntry: (id: string) => Promise<void>;
   
-  setProfile: (partial: Partial<Profile>) => void;
+  setProfile: (partial: Partial<Profile>) => Promise<void>;
   
   toggleSidebar: () => void;
   clearAll: () => void;
@@ -104,21 +117,21 @@ interface AppState {
   startTimer: (skillId: string) => void;
   stopTimer: () => void;
   resumeTimer: () => void;
-  endTimer: (notes?: string) => void;
+  endTimer: (notes?: string) => Promise<void>;
   updateElapsedTime: (elapsed: number) => void;
   
   // Session actions
   addNoteToSession: (sessionId: string, notes: string) => void;
   
   // Goal actions
-  addGoal: (payload: Omit<Goal, 'id' | 'completed' | 'createdAt'>) => void;
-  updateGoal: (id: string, updates: Partial<Omit<Goal, 'id'>>) => void;
-  deleteGoal: (id: string) => void;
+  addGoal: (payload: Omit<Goal, 'id' | 'completed' | 'createdAt'>) => Promise<void>;
+  updateGoal: (id: string, updates: Partial<Omit<Goal, 'id'>>) => Promise<void>;
+  deleteGoal: (id: string) => Promise<void>;
   
   // Daily Task actions
-  addDailyTask: (payload: Omit<DailyTask, 'id' | 'completed' | 'createdAt'>) => void;
-  toggleDailyTask: (id: string) => void;
-  deleteDailyTask: (id: string) => void;
+  addDailyTask: (payload: Omit<DailyTask, 'id' | 'completed' | 'createdAt'>) => Promise<void>;
+  toggleDailyTask: (id: string) => Promise<void>;
+  deleteDailyTask: (id: string) => Promise<void>;
   saveDailyLog: () => void;
 }
 
@@ -134,6 +147,8 @@ const initialProfile: Profile = {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
+      isAuthenticated: false,
+      user: null,
       skills: [],
       entries: [],
       profile: initialProfile,
@@ -144,63 +159,295 @@ export const useAppStore = create<AppState>()(
       dailyTaskLogs: [],
       activeTimer: null,
 
-      addSkill: (name: string, priority: Priority = 'medium') => {
+      login: async (credentials) => {
+        try {
+          const result = await apiService.login(credentials);
+          set({ 
+            isAuthenticated: true, 
+            user: result.user,
+            profile: { 
+              name: result.user?.user_metadata?.name || '',
+              email: result.user?.email || '',
+              profession: '',
+              company: '',
+              location: '',
+              bio: ''
+            }
+          });
+          await get().syncFromServer();
+        } catch (error) {
+          throw error;
+        }
+      },
+
+      register: async (userData) => {
+        try {
+          const result = await apiService.register(userData);
+          
+          // Only set authenticated if we have a session (confirmations disabled)
+          if (result.session) {
+            set({ 
+              isAuthenticated: true, 
+              user: result.user,
+              profile: {
+                name: userData.name,
+                email: userData.email,
+                profession: '',
+                company: '',
+                location: '',
+                bio: ''
+              }
+            });
+          }
+          
+          return result;
+        } catch (error) {
+          throw error;
+        }
+      },
+
+      signInWithGoogle: async () => {
+        try {
+          await apiService.signInWithGoogle();
+          // OAuth redirect will handle the rest
+        } catch (error) {
+          throw error;
+        }
+      },
+
+      logout: async () => {
+        try {
+          await apiService.logout();
+          set({
+            isAuthenticated: false,
+            user: null,
+            skills: [],
+            entries: [],
+            sessions: [],
+            goals: [],
+            dailyTasks: [],
+            profile: initialProfile,
+          });
+        } catch (error) {
+          // Logout error handled silently
+        }
+      },
+
+      syncFromServer: async () => {
+        try {
+          const [skillsData, entriesData, sessionsData, goalsData, tasksData] = await Promise.all([
+            apiService.getSkills(),
+            apiService.getEntries(),
+            apiService.getSessions(),
+            apiService.getGoals(),
+            apiService.getTasks(),
+          ]);
+          
+          // Map database sessions to frontend format
+          const mappedSessions = (sessionsData.sessions || []).map((session: any) => ({
+            id: session.id,
+            skillId: session.skill_id,
+            date: session.date,
+            startTime: new Date(session.start_time).getTime(),
+            endTime: new Date(session.end_time).getTime(),
+            totalHours: session.total_hours,
+            notes: session.notes,
+            intervals: session.intervals || []
+          }));
+          
+          // Map database entries to frontend format
+          const mappedEntries = (entriesData.entries || []).map((entry: any) => ({
+            id: entry.id,
+            skillId: entry.skill_id,
+            date: entry.date,
+            hours: entry.hours,
+            notes: entry.notes
+          }));
+          
+          // Map database goals to frontend format
+          const mappedGoals = (goalsData.goals || []).map((goal: any) => ({
+            id: goal.id,
+            skillId: goal.skill_id,
+            title: goal.title,
+            description: goal.description,
+            targetHours: goal.target_hours,
+            dailyTarget: goal.daily_target,
+            deadline: goal.deadline,
+            completed: goal.completed,
+            completionNote: goal.completion_note,
+            createdAt: goal.created_at
+          }));
+          
+          // Map database tasks to frontend format
+          const mappedTasks = (tasksData.tasks || []).map((task: any) => ({
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            completed: task.completed,
+            createdAt: task.created_at,
+            completedAt: task.completed_at
+          }));
+          
+          set({
+            skills: skillsData.skills || [],
+            entries: mappedEntries,
+            sessions: mappedSessions,
+            goals: mappedGoals,
+            dailyTasks: mappedTasks,
+          });
+        } catch (error) {
+          // Sync error handled silently
+        }
+      },
+
+      syncToServer: async () => {
+        // This will be called when going online after offline changes
+        // For now, we'll rely on optimistic updates
+      },
+
+      checkAuthStatus: async () => {
+        try {
+          const isAuth = await apiService.checkAuth();
+          if (isAuth) {
+            const user = await apiService.getCurrentUser();
+            set({ 
+              isAuthenticated: true, 
+              user,
+              profile: {
+                name: user?.user_metadata?.name || '',
+                email: user?.email || '',
+                profession: '',
+                company: '',
+                location: '',
+                bio: ''
+              }
+            });
+            await get().syncFromServer();
+          } else {
+            set({ isAuthenticated: false, user: null });
+          }
+        } catch (error) {
+          set({ isAuthenticated: false, user: null });
+        }
+      },
+
+      addSkill: async (name: string, priority: Priority = 'medium') => {
         const trimmedName = name.trim();
         if (!trimmedName) return;
         
-        // Convert to camelCase
-        const camelCaseName = trimmedName
-          .split(' ')
-          .map((word, index) => 
-            index === 0 
-              ? word.toLowerCase()
-              : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-          )
-          .join('');
-        
+        // Check for duplicates locally first
         const exists = get().skills.some(
-          skill => skill.name.toLowerCase() === camelCaseName.toLowerCase()
+          skill => skill.name.toLowerCase() === trimmedName.toLowerCase()
         );
+        if (exists) throw new Error('Skill already exists');
         
-        if (exists) return;
+        const tempSkill = { id: uuidv4(), name: trimmedName, priority };
         
-        set(state => ({
-          skills: [...state.skills, { id: uuidv4(), name: camelCaseName, priority }]
-        }));
+        // Optimistic update
+        set(state => ({ skills: [...state.skills, tempSkill] }));
+
+        try {
+          const result = await apiService.createSkill({ name: trimmedName, priority });
+          // Replace temp skill with server response
+          set(state => ({
+            skills: state.skills.map(s => s.id === tempSkill.id ? {
+              id: result.skill.id,
+              name: result.skill.name,
+              priority: result.skill.priority
+            } : s)
+          }));
+        } catch (error) {
+          // Rollback on error
+          set(state => ({ skills: state.skills.filter(s => s.id !== tempSkill.id) }));
+          throw error;
+        }
       },
 
-      updateSkill: (id: string, updates: Partial<Omit<Skill, 'id'>>) => {
+      updateSkill: async (id: string, updates: Partial<Omit<Skill, 'id'>>) => {
+        const oldSkills = get().skills;
         set(state => ({
           skills: state.skills.map(skill => 
             skill.id === id ? { ...skill, ...updates } : skill
           )
         }));
+
+        try {
+          await apiService.updateSkill(id, updates);
+        } catch (error) {
+          set({ skills: oldSkills });
+          throw error;
+        }
       },
 
-      deleteSkill: (id: string) => {
+      deleteSkill: async (id: string) => {
+        const oldState = { skills: get().skills, entries: get().entries };
         set(state => ({
           skills: state.skills.filter(skill => skill.id !== id),
           entries: state.entries.filter(entry => entry.skillId !== id)
         }));
+
+        try {
+          await apiService.deleteSkill(id);
+        } catch (error) {
+          set(oldState);
+          throw error;
+        }
       },
 
-      addEntry: (payload) => {
+      addEntry: async (payload) => {
         const hours = Math.max(0, Math.min(24, payload.hours));
-        set(state => ({
-          entries: [...state.entries, { ...payload, hours, id: uuidv4() }]
-        }));
+        const tempEntry = { ...payload, hours, id: uuidv4() };
+        
+        // Optimistic update
+        set(state => ({ entries: [...state.entries, tempEntry] }));
+
+        try {
+          const entryData = {
+            skill_id: payload.skillId,
+            date: payload.date,
+            hours,
+            notes: payload.notes
+          };
+          
+          const result = await apiService.createEntry(entryData);
+          
+          // Replace temp entry with server response
+          set(state => ({
+            entries: state.entries.map(e => e.id === tempEntry.id ? {
+              id: result.entry.id,
+              skillId: result.entry.skill_id,
+              date: result.entry.date,
+              hours: result.entry.hours,
+              notes: result.entry.notes
+            } : e)
+          }));
+        } catch (error) {
+          // Rollback on error
+          set(state => ({ entries: state.entries.filter(e => e.id !== tempEntry.id) }));
+          throw error;
+        }
       },
 
-      deleteEntry: (id: string) => {
-        set(state => ({
-          entries: state.entries.filter(entry => entry.id !== id)
-        }));
+      deleteEntry: async (id: string) => {
+        const oldEntries = get().entries;
+        set(state => ({ entries: state.entries.filter(entry => entry.id !== id) }));
+
+        try {
+          await apiService.deleteEntry(id);
+        } catch (error) {
+          set({ entries: oldEntries });
+          throw error;
+        }
       },
 
-      setProfile: (partial) => {
+      setProfile: async (partial) => {
+        // Update local state immediately
         set(state => ({
           profile: { ...state.profile, ...partial }
         }));
+        
+        // Note: Supabase auth.users table updates would go here if needed
+        // For now, we'll just keep profile data in local state
       },
 
       toggleSidebar: () => {
@@ -276,7 +523,7 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
-      endTimer: (notes?: string) => {
+      endTimer: async (notes?: string) => {
         const state = get();
         if (!state.activeTimer) return;
         
@@ -295,32 +542,75 @@ export const useAppStore = create<AppState>()(
         }
         
         const sessionStart = Math.min(...finalIntervals.map(i => i.start));
-        const actualDuration = (now - sessionStart) / 1000 / 3600; // Convert to hours
+        const actualDuration = (now - sessionStart) / 1000 / 3600;
+        const totalHours = Math.round(actualDuration * 100) / 100;
+        const date = new Date().toISOString().split('T')[0];
         
-        const session: Session = {
+        // Create temp records for optimistic update
+        const tempSession: Session = {
           id: uuidv4(),
           skillId: state.activeTimer.skillId,
-          date: new Date().toISOString().split('T')[0],
+          date,
           startTime: sessionStart,
           endTime: now,
-          totalHours: Math.round(actualDuration * 100) / 100,
+          totalHours,
           notes,
           intervals: finalIntervals
         };
         
-        const entry: Entry = {
+        const tempEntry: Entry = {
           id: uuidv4(),
-          date: new Date().toISOString().split('T')[0],
+          date,
           skillId: state.activeTimer.skillId,
-          hours: Math.round(actualDuration * 100) / 100,
+          hours: totalHours,
           notes: notes || 'Timer session'
         };
         
+        // Optimistic update
         set(state => ({
-          entries: [...state.entries, entry],
-          sessions: [...state.sessions, session],
+          entries: [...state.entries, tempEntry],
+          sessions: [...state.sessions, tempSession],
           activeTimer: null
         }));
+        
+        try {
+          // Save to Supabase
+          const [sessionResult, entryResult] = await Promise.all([
+            apiService.createSession({
+              skill_id: state.activeTimer.skillId,
+              date,
+              start_time: new Date(sessionStart).toISOString(),
+              end_time: new Date(now).toISOString(),
+              total_hours: totalHours,
+              notes,
+              intervals: finalIntervals
+            }),
+            apiService.createEntry({
+              skill_id: state.activeTimer.skillId,
+              date,
+              hours: totalHours,
+              notes: notes || 'Timer session'
+            })
+          ]);
+          
+          // Update with server IDs
+          set(state => ({
+            sessions: state.sessions.map(s => 
+              s.id === tempSession.id ? {
+                ...tempSession,
+                id: sessionResult.session.id
+              } : s
+            ),
+            entries: state.entries.map(e => 
+              e.id === tempEntry.id ? {
+                ...tempEntry,
+                id: entryResult.entry.id
+              } : e
+            )
+          }));
+        } catch (error) {
+          // Keep local data even if server sync fails
+        }
       },
 
       updateElapsedTime: (elapsed: number) => {
@@ -332,58 +622,153 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
-      addGoal: (payload) => {
-        set(state => ({
-          goals: [...state.goals, {
-            ...payload,
-            id: uuidv4(),
-            completed: false,
-            createdAt: new Date().toISOString()
-          }]
-        }));
+      addGoal: async (payload) => {
+        const tempGoal = {
+          ...payload,
+          id: uuidv4(),
+          completed: false,
+          createdAt: new Date().toISOString()
+        };
+        
+        set(state => ({ goals: [...state.goals, tempGoal] }));
+        
+        try {
+          const result = await apiService.createGoal({
+            skill_id: payload.skillId,
+            title: payload.title,
+            description: payload.description,
+            target_hours: payload.targetHours,
+            daily_target: payload.dailyTarget,
+            deadline: payload.deadline
+          });
+          
+          set(state => ({
+            goals: state.goals.map(g => g.id === tempGoal.id ? {
+              id: result.goal.id,
+              skillId: result.goal.skill_id,
+              title: result.goal.title,
+              description: result.goal.description,
+              targetHours: result.goal.target_hours,
+              dailyTarget: result.goal.daily_target,
+              deadline: result.goal.deadline,
+              completed: result.goal.completed,
+              completionNote: result.goal.completion_note,
+              createdAt: result.goal.created_at
+            } : g)
+          }));
+        } catch (error) {
+          set(state => ({ goals: state.goals.filter(g => g.id !== tempGoal.id) }));
+          throw error;
+        }
       },
 
-      updateGoal: (id: string, updates) => {
+      updateGoal: async (id: string, updates) => {
+        const oldGoals = get().goals;
         set(state => ({
           goals: state.goals.map(goal => 
             goal.id === id ? { ...goal, ...updates } : goal
           )
         }));
+        
+        try {
+          await apiService.updateGoal(id, {
+            title: updates.title,
+            description: updates.description,
+            target_hours: updates.targetHours,
+            daily_target: updates.dailyTarget,
+            deadline: updates.deadline,
+            completed: updates.completed,
+            completion_note: updates.completionNote
+          });
+        } catch (error) {
+          set({ goals: oldGoals });
+          throw error;
+        }
       },
 
-      deleteGoal: (id: string) => {
-        set(state => ({
-          goals: state.goals.filter(goal => goal.id !== id)
-        }));
+      deleteGoal: async (id: string) => {
+        const oldGoals = get().goals;
+        set(state => ({ goals: state.goals.filter(goal => goal.id !== id) }));
+        
+        try {
+          await apiService.deleteGoal(id);
+        } catch (error) {
+          set({ goals: oldGoals });
+          throw error;
+        }
       },
       
-      addDailyTask: (payload) => {
-        set(state => ({
-          dailyTasks: [...state.dailyTasks, {
-            ...payload,
-            id: uuidv4(),
-            completed: false,
-            createdAt: new Date().toISOString()
-          }]
-        }));
+      addDailyTask: async (payload) => {
+        const tempTask = {
+          ...payload,
+          id: uuidv4(),
+          completed: false,
+          createdAt: new Date().toISOString()
+        };
+        
+        set(state => ({ dailyTasks: [...state.dailyTasks, tempTask] }));
+        
+        try {
+          const result = await apiService.createTask({
+            title: payload.title,
+            description: payload.description,
+            date: payload.date || new Date().toISOString().split('T')[0]
+          });
+          
+          set(state => ({
+            dailyTasks: state.dailyTasks.map(t => t.id === tempTask.id ? {
+              id: result.task.id,
+              title: result.task.title,
+              description: result.task.description,
+              completed: result.task.completed,
+              createdAt: result.task.created_at,
+              completedAt: result.task.completed_at
+            } : t)
+          }));
+        } catch (error) {
+          set(state => ({ dailyTasks: state.dailyTasks.filter(t => t.id !== tempTask.id) }));
+          throw error;
+        }
       },
       
-      toggleDailyTask: (id: string) => {
+      toggleDailyTask: async (id: string) => {
+        const oldTasks = get().dailyTasks;
+        const task = oldTasks.find(t => t.id === id);
+        if (!task) return;
+        
+        const updatedTask = {
+          ...task,
+          completed: !task.completed,
+          completedAt: !task.completed ? new Date().toISOString() : undefined
+        };
+        
         set(state => ({
-          dailyTasks: state.dailyTasks.map(task => 
-            task.id === id ? {
-              ...task,
-              completed: !task.completed,
-              completedAt: !task.completed ? new Date().toISOString() : undefined
-            } : task
+          dailyTasks: state.dailyTasks.map(t => 
+            t.id === id ? updatedTask : t
           )
         }));
+        
+        try {
+          await apiService.updateTask(id, {
+            completed: updatedTask.completed,
+            completed_at: updatedTask.completedAt
+          });
+        } catch (error) {
+          set({ dailyTasks: oldTasks });
+          throw error;
+        }
       },
       
-      deleteDailyTask: (id: string) => {
-        set(state => ({
-          dailyTasks: state.dailyTasks.filter(task => task.id !== id)
-        }));
+      deleteDailyTask: async (id: string) => {
+        const oldTasks = get().dailyTasks;
+        set(state => ({ dailyTasks: state.dailyTasks.filter(task => task.id !== id) }));
+        
+        try {
+          await apiService.deleteTask(id);
+        } catch (error) {
+          set({ dailyTasks: oldTasks });
+          throw error;
+        }
       },
       
       saveDailyLog: () => {

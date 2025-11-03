@@ -37,9 +37,11 @@ export const Sessions = () => {
     });
 
   const formatDuration = (hours: number) => {
-    const h = Math.floor(hours);
-    const m = Math.floor((hours - h) * 60);
-    return `${h}h ${m}m`;
+    const totalSeconds = Math.floor(hours * 3600);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${h}h ${m}m ${s}s`;
   };
 
   const handleEditNote = (sessionId: string, currentNote?: string) => {
@@ -153,14 +155,28 @@ export const Sessions = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"
+        className="space-y-3"
       >
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Sessions</h1>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        {/* Title and Add Button Row */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">Sessions</h1>
+          <motion.button
+            onClick={() => setShowAddSession(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Plus size={16} />
+            Add Session
+          </motion.button>
+        </div>
+        
+        {/* Filters Row */}
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={skillFilter}
             onChange={(e) => setSkillFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            className="px-2 py-1 sm:px-3 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm flex-1 min-w-0"
           >
             <option value="">All Skills</option>
             {skills.map(skill => (
@@ -170,33 +186,24 @@ export const Sessions = () => {
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            className="px-2 py-1 sm:px-3 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm flex-1 min-w-0"
           >
-            <option value="all">All Dates</option>
+            <option value="all">All</option>
             <option value="today">Today</option>
             <option value="yesterday">Yesterday</option>
-            <option value="custom">Custom Date</option>
+            <option value="custom">Custom</option>
           </select>
           {dateFilter === 'custom' && (
             <input
               type="date"
               value={customDate}
               onChange={(e) => setCustomDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="px-2 py-1 sm:px-3 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm flex-1 min-w-0"
             />
           )}
-          <div className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-            Total Sessions: {sortedSessions.length}
+          <div className="text-xs sm:text-sm font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded-full whitespace-nowrap">
+            {sortedSessions.length}
           </div>
-          <motion.button
-            onClick={() => setShowAddSession(true)}
-            className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Plus size={16} />
-            Add Session
-          </motion.button>
         </div>
       </motion.div>
 
@@ -326,44 +333,59 @@ export const Sessions = () => {
                           </div>
                         </div>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-                          <div className="bg-white/60 p-3 rounded-lg">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Play size={14} className="text-green-600" />
-                              <span className="text-gray-600 font-medium">Start Time</span>
+                        {/* Mobile: Compact 2-column layout */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 text-xs md:text-sm">
+                          <div className="bg-white/60 p-2 md:p-3 rounded-lg">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Play size={12} className="text-green-600" />
+                              <span className="text-gray-600 font-medium hidden sm:inline">Start</span>
                             </div>
-                            <span className="font-semibold text-gray-900">{formatTime(session.startTime)}</span>
+                            <span className="font-semibold text-gray-900 text-xs md:text-sm">
+                              {new Date(session.startTime).toLocaleTimeString('en-US', { 
+                                hour: 'numeric', 
+                                minute: '2-digit',
+                                second: '2-digit',
+                                hour12: true 
+                              })}
+                            </span>
                           </div>
-                          <div className="bg-white/60 p-3 rounded-lg">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Square size={14} className="text-red-600" />
-                              <span className="text-gray-600 font-medium">End Time</span>
+                          <div className="bg-white/60 p-2 md:p-3 rounded-lg">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Square size={12} className="text-red-600" />
+                              <span className="text-gray-600 font-medium hidden sm:inline">End</span>
                             </div>
-                            <span className="font-semibold text-gray-900">{formatTime(session.endTime)}</span>
+                            <span className="font-semibold text-gray-900 text-xs md:text-sm">
+                              {new Date(session.endTime).toLocaleTimeString('en-US', { 
+                                hour: 'numeric', 
+                                minute: '2-digit',
+                                second: '2-digit',
+                                hour12: true 
+                              })}
+                            </span>
                           </div>
-                          <div className="bg-white/60 p-3 rounded-lg">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Clock size={14} className="text-blue-600" />
-                              <span className="text-gray-600 font-medium">Duration</span>
+                          <div className="bg-white/60 p-2 md:p-3 rounded-lg">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Clock size={12} className="text-blue-600" />
+                              <span className="text-gray-600 font-medium hidden sm:inline">Duration</span>
                             </div>
-                            <span className="font-semibold text-blue-600">
+                            <span className="font-semibold text-blue-600 text-xs md:text-sm">
                               {formatDuration(session.totalHours)}
                             </span>
                           </div>
-                          <div className="bg-white/60 p-3 rounded-lg">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Pause size={14} className="text-yellow-600" />
-                              <span className="text-gray-600 font-medium">Pauses</span>
+                          <div className="bg-white/60 p-2 md:p-3 rounded-lg">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Pause size={12} className="text-yellow-600" />
+                              <span className="text-gray-600 font-medium hidden sm:inline">Pauses</span>
                             </div>
-                            <span className="font-semibold text-gray-900">
-                              {totalPauses} ({pauseDuration}m)
+                            <span className="font-semibold text-gray-900 text-xs md:text-sm">
+                              {totalPauses}<span className="hidden sm:inline"> ({pauseDuration}m)</span>
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Notes Section */}
-                      <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-gray-200 pt-4 lg:pt-0 lg:pl-6 bg-white/60 rounded-lg lg:rounded-none p-3 lg:p-0 lg:bg-transparent">
+                      {/* Notes Section - Mobile: Full width, Desktop: Side panel */}
+                      <div className="w-full lg:w-72 border-t lg:border-t-0 lg:border-l border-gray-200 pt-3 lg:pt-0 lg:pl-4 bg-white/60 rounded-lg lg:rounded-none p-2 lg:p-0 lg:bg-transparent">
                         {editingNote === session.id ? (
                           <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
@@ -373,15 +395,15 @@ export const Sessions = () => {
                             <textarea
                               value={noteText}
                               onChange={(e) => setNoteText(e.target.value)}
-                              placeholder="Add your notes about this session..."
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm"
-                              rows={3}
+                              placeholder="Add notes..."
+                              className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-xs md:text-sm"
+                              rows={2}
                               autoFocus
                             />
                             <div className="flex gap-2">
                               <motion.button
                                 onClick={() => handleSaveNote(session.id)}
-                                className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                                className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                               >
@@ -389,7 +411,7 @@ export const Sessions = () => {
                               </motion.button>
                               <motion.button
                                 onClick={handleCancelEdit}
-                                className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded text-sm"
+                                className="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded text-xs"
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                               >
@@ -400,7 +422,7 @@ export const Sessions = () => {
                         ) : (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-gray-600">Notes</span>
+                              <span className="text-xs md:text-sm text-gray-600">Notes</span>
                               <motion.button
                                 onClick={() => handleEditNote(session.id, session.notes)}
                                 className="text-gray-400 hover:text-blue-600 p-1"
@@ -412,7 +434,7 @@ export const Sessions = () => {
                             </div>
                             {session.notes ? (
                               <motion.p 
-                                className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg"
+                                className="text-xs md:text-sm text-gray-700 bg-gray-50 p-2 rounded-lg line-clamp-2"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                               >
@@ -420,11 +442,11 @@ export const Sessions = () => {
                               </motion.p>
                             ) : (
                               <motion.p 
-                                className="text-sm text-gray-400 italic"
+                                className="text-xs md:text-sm text-gray-400 italic"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                               >
-                                No notes added
+                                No notes
                               </motion.p>
                             )}
                           </div>

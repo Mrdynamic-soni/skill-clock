@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "./components/Sidebar";
 import { Footer } from "./components/Footer";
 import { ToastContainer } from "./components/Toast";
+import { MobileHeader } from "./components/MobileHeader";
 import { useToast } from "./hooks/useToast";
 import { Skills } from "./pages/Skills";
 import { Timer } from "./pages/Timer";
@@ -16,27 +17,33 @@ import { Sessions } from "./pages/Sessions";
 import { Analytics } from "./pages/Analytics";
 import { Goals } from "./pages/Goals";
 import { DailyTasks } from "./pages/DailyTasks";
-import { Help } from "./pages/Help";
 import { Profile } from "./pages/Profile";
-import { Settings } from "./pages/Settings";
 import { About } from "./pages/About";
-
-
+import { PrivacyPolicy } from "./pages/PrivacyPolicy";
+import { TermsOfService } from "./pages/TermsOfService";
+import { Contact } from "./pages/Contact";
+import { Admin } from "./pages/Admin";
+import { useAppStore } from "./store/appStore";
+import { useEffect, useState } from "react";
+import { AuthForm } from "./components/AuthForm";
+import { supabase } from "./lib/supabase";
 
 const Layout = () => {
   const { toasts, removeToast } = useToast();
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
-      <Sidebar />
+      <MobileHeader onMenuClick={() => setMobileMenuOpen(true)} />
+      <Sidebar mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
       <motion.div
         className="flex-1 flex flex-col"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto flex flex-col md:block">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -44,11 +51,12 @@ const Layout = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
+              className="flex-1 flex flex-col md:block"
             >
-              <div className="p-2 md:p-4 pt-16 md:pt-4">
+              <div className="p-2 md:p-4 pt-16 md:pt-4 flex-1">
                 <Outlet />
               </div>
-              <div className="md:hidden">
+              <div className="md:hidden mt-auto">
                 <Footer />
               </div>
             </motion.div>
@@ -63,23 +71,62 @@ const Layout = () => {
   );
 };
 
-const App = () => (
-  <Router>
-    <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Skills />} />
-        <Route path="timer" element={<Timer />} />
-        <Route path="sessions" element={<Sessions />} />
-        <Route path="analytics" element={<Analytics />} />
-        <Route path="goals" element={<Goals />} />
-        <Route path="daily-tasks" element={<DailyTasks />} />
-        <Route path="help" element={<Help />} />
-        <Route path="profile" element={<Profile />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="about" element={<About />} />
-      </Route>
-    </Routes>
-  </Router>
-);
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated } = useAppStore();
+
+  if (!isAuthenticated) {
+    return <AuthForm />;
+  }
+
+  return <>{children}</>;
+};
+
+const App = () => {
+  const { checkAuthStatus } = useAppStore();
+
+  useEffect(() => {
+    checkAuthStatus();
+    
+    // Handle OAuth callback and auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        checkAuthStatus();
+      } else if (event === 'SIGNED_OUT') {
+        checkAuthStatus();
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [checkAuthStatus]);
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/auth" element={<AuthForm />} />
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Skills />} />
+          <Route path="timer" element={<Timer />} />
+          <Route path="sessions" element={<Sessions />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="goals" element={<Goals />} />
+          <Route path="daily-tasks" element={<DailyTasks />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="about" element={<About />} />
+          <Route path="privacy" element={<PrivacyPolicy />} />
+          <Route path="terms" element={<TermsOfService />} />
+          <Route path="contact" element={<Contact />} />
+          <Route path="admin" element={<Admin />} />
+        </Route>
+      </Routes>
+    </Router>
+  );
+};
 
 export default App;

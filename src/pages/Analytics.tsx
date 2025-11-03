@@ -123,59 +123,62 @@ export const Analytics = () => {
 
   return (
     <div className=" md:space-y-2">
-      {/* Date Range Filter */}
+      {/* Analytics Header */}
       <motion.div
-        className="bg-white rounded-lg shadow p-2 md:p-3"
+        className="bg-white rounded-lg shadow p-3 space-y-3"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between ">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Calendar size={20} />
-            Analytics Filters
-          </h2>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <select
-              value={selectedSkillId}
-              onChange={(e) => setSelectedSkillId(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Skills</option>
-              {skills.map((skill) => (
-                <option key={skill.id} value={skill.id}>
-                  {skill.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value as DateRange)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="daily">Today</option>
-              <option value="weekly">Last 7 Days</option>
-              <option value="monthly">Last 30 Days</option>
-              <option value="custom">Custom Range</option>
-            </select>
-            {dateRange === "custom" && (
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
-          </div>
+        {/* Title Row */}
+        <div className="flex items-center gap-2">
+          <Calendar size={18} className="text-blue-600" />
+          <h2 className="text-lg md:text-xl font-semibold">Analytics</h2>
         </div>
+        
+        {/* Filters Row */}
+        <div className="flex flex-wrap gap-2">
+          <select
+            value={selectedSkillId}
+            onChange={(e) => setSelectedSkillId(e.target.value)}
+            className="px-2 py-1 sm:px-3 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm flex-1 min-w-0"
+          >
+            <option value="all">All Skills</option>
+            {skills.map((skill) => (
+              <option key={skill.id} value={skill.id}>
+                {skill.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value as DateRange)}
+            className="px-2 py-1 sm:px-3 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm flex-1 min-w-0"
+          >
+            <option value="daily">Today</option>
+            <option value="weekly">7 Days</option>
+            <option value="monthly">30 Days</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        
+        {/* Custom Date Inputs */}
+        {dateRange === "custom" && (
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              className="px-2 py-1 sm:px-3 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm flex-1"
+            />
+            <input
+              type="date"
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              className="px-2 py-1 sm:px-3 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm flex-1"
+            />
+          </div>
+        )}
       </motion.div>
 
       {/* Data Summary */}
@@ -187,7 +190,7 @@ export const Analytics = () => {
       >
         <h2 className="text-lg font-semibold mb-6">Data Summary</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 md:gap-4">
           <motion.div
             className="text-center p-4 bg-blue-50 rounded-lg"
             initial={{ opacity: 0, scale: 0.9 }}

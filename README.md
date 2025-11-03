@@ -1,26 +1,36 @@
-# Skill Hours Tracker
+# SkillClock
 
-A frontend-only productivity app built with Vite + React + TypeScript to track daily dedicated hours by skill/work category. All data is stored locally in the browser with no backend required.
+A full-stack productivity app built with Vite + React + TypeScript and Supabase to track daily dedicated hours by skill/work category. Features cloud authentication and data synchronization across devices.
 
 ## Features
 
-- **Skill Management**: Create and manage skills/work categories with duplicate prevention
-- **Time Logging**: Log daily hours (0-24, step 0.25) with optional notes
+- **Authentication**: Email/password and Google OAuth sign-in with Supabase
+- **Skill Management**: Create and manage skills/work categories with priority levels
+- **Timer System**: Real-time timer with pause/resume functionality and session tracking
+- **Time Logging**: Manual entry and automatic timer-based logging with notes
+- **Sessions**: Detailed session history with start/end times, duration, and pause tracking
+- **Goals**: Set and track skill-based goals with deadlines and progress monitoring
+- **Daily Tasks**: Task management with completion tracking
 - **Analytics**: Interactive charts showing hours by skill, distribution, and daily trends
-- **Profile Management**: Maintain professional profile with validation
-- **Data Management**: Export/import JSON backups, clear all data
-- **Responsive Design**: Works on desktop and mobile
-- **Local Storage**: All data persisted locally with Zustand + localStorage
+- **Profile Management**: User profile with validation
+- **Admin Dashboard**: Feedback management system (admin-only)
+- **Mobile Optimized**: Responsive design with mobile-first approach
+- **Cloud Sync**: All data synchronized across devices via Supabase
 
 ## Tech Stack
 
 - **Frontend**: React 18 + TypeScript
 - **Build Tool**: Vite
-- **State Management**: Zustand with persist middleware
+- **Backend**: Supabase (PostgreSQL + Auth + Real-time)
+- **State Management**: Zustand with optimistic updates
 - **Routing**: React Router v6
+- **Authentication**: Supabase Auth (Email/Password + Google OAuth)
+- **Database**: PostgreSQL with Row Level Security (RLS)
 - **Charts**: Recharts
 - **Styling**: Tailwind CSS
+- **UI Components**: Headless UI (dropdowns)
 - **Icons**: Lucide React
+- **Animations**: Framer Motion
 - **UUID**: uuid library
 
 ## Getting Started
@@ -29,6 +39,7 @@ A frontend-only productivity app built with Vite + React + TypeScript to track d
 
 - Node.js 18+ 
 - npm or yarn
+- Supabase account (for backend services)
 
 ### Installation
 
@@ -38,12 +49,26 @@ A frontend-only productivity app built with Vite + React + TypeScript to track d
    npm install
    ```
 
-3. Start the development server:
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+   Add your Supabase credentials:
+   ```
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+4. Set up the database:
+   - Run the SQL schema in `setup-database.sql` in your Supabase SQL editor
+   - Configure Google OAuth in Supabase Auth settings
+
+5. Start the development server:
    ```bash
    npm run dev
    ```
 
-4. Open [http://localhost:5173](http://localhost:5173) in your browser
+6. Open [http://localhost:5173](http://localhost:5173) in your browser
 
 ### Build for Production
 
@@ -55,34 +80,64 @@ The built files will be in the `dist/` directory.
 
 ## Usage
 
-### Dashboard
-- Add skills (prevents duplicates, case-insensitive)
-- Log daily hours with date, skill selection, hours (0-24), and optional notes
-- View recent entries table with delete functionality
-- See total hours summary
+### Authentication
+- Sign up with email/password or Google OAuth
+- Email verification required for new accounts
+- Secure session management with Supabase Auth
+
+### Skills Dashboard
+- Add skills with priority levels (low, medium, high)
+- Prevents duplicate skills (case-insensitive)
+- View and manage all skills with edit/delete functionality
+
+### Timer System
+- Start/pause/resume timers for any skill
+- Real-time elapsed time display
+- Automatic session and entry creation on timer end
+- Guard rails prevent logout during active sessions
+
+### Time Logging
+- Manual entry with date, skill, hours (0-24), and notes
+- Automatic entries from timer sessions
+- View recent entries with delete functionality
+
+### Sessions
+- Detailed session history with precise timing (including seconds)
+- Start/end times, duration, pause tracking
+- Add/edit session notes
+- Filter by skill and date
+- Manual session entry capability
+
+### Goals
+- Set skill-based goals with target hours and deadlines
+- Daily target tracking
+- Progress monitoring and completion status
+- Goal management (create, edit, delete, complete)
+
+### Daily Tasks
+- Create and manage daily tasks
+- Mark tasks as complete/incomplete
+- Task completion tracking
 
 ### Analytics
 - **Bar Chart**: Total hours per skill (sorted descending)
 - **Pie Chart**: Hours distribution by skill with legend
 - **Line Chart**: Daily hours trend (last 30 days)
-- Graceful empty state handling
+- Real-time data updates
 
 ### Profile
-- Manage personal information (name*, email*, profession, company, location, bio)
+- Manage user profile information
 - Form validation with error messages
-- Live preview card showing saved profile
 
-### Settings
-- **Export Data**: Download complete backup as JSON
-- **Import Data**: Restore from JSON backup file
-- **Clear All Data**: Remove all stored data (with confirmation)
-- Data summary statistics
-- Privacy information
+### Help & About
+- Comprehensive app information
+- User feedback system
+- Contact information and support
 
-### About
-- App information and feature overview
-- Privacy and security details
-- Technical specifications
+### Admin Dashboard
+- View all user feedback and suggestions (admin-only)
+- Filter feedback by type (questions/suggestions)
+- Real-time feedback statistics
 
 ## Data Structure
 
@@ -90,6 +145,7 @@ The built files will be in the `dist/` directory.
 interface Skill {
   id: string;
   name: string;
+  priority: 'low' | 'medium' | 'high';
 }
 
 interface Entry {
@@ -98,6 +154,39 @@ interface Entry {
   skillId: string;
   hours: number;      // 0-24
   notes?: string;
+}
+
+interface Session {
+  id: string;
+  skillId: string;
+  date: string;
+  startTime: number;  // timestamp
+  endTime: number;    // timestamp
+  totalHours: number;
+  notes?: string;
+  intervals: Array<{ start: number; end?: number }>;
+}
+
+interface Goal {
+  id: string;
+  skillId: string;
+  title: string;
+  description: string;
+  targetHours: number;
+  dailyTarget: number;
+  deadline: string;
+  completed: boolean;
+  completionNote?: string;
+  createdAt: string;
+}
+
+interface DailyTask {
+  id: string;
+  title: string;
+  description?: string;
+  completed: boolean;
+  createdAt: string;
+  completedAt?: string;
 }
 
 interface Profile {
@@ -112,11 +201,13 @@ interface Profile {
 
 ## State Management
 
-The app uses Zustand with localStorage persistence:
-- **Store Key**: `sht.store.v1`
-- **Version**: 1 (for future migrations)
-- **Persistence**: Automatic via zustand/middleware persist
+The app uses Zustand with Supabase integration:
+- **Client State**: Zustand store with optimistic updates
+- **Server State**: Supabase PostgreSQL with real-time sync
+- **Authentication**: Supabase Auth state management
+- **Persistence**: Cloud-based with local caching
 - **Selectors**: Optimized selectors for computed values
+- **Offline Support**: Optimistic updates with server reconciliation
 
 ## Key Features
 
@@ -134,10 +225,11 @@ The app uses Zustand with localStorage persistence:
 - Keyboard navigation support
 
 ### Data Safety
-- All data stored locally (no external servers)
-- Export/import functionality for backups
-- Clear confirmation for data deletion
-- Graceful handling of corrupted data
+- Cloud-based data storage with Supabase
+- Row Level Security (RLS) for data isolation
+- Real-time synchronization across devices
+- Optimistic updates with error handling
+- Secure authentication with JWT tokens
 
 ## Browser Compatibility
 
@@ -164,26 +256,57 @@ Requires localStorage support and modern JavaScript features.
 
 ### Performance Considerations
 - Zustand selectors prevent unnecessary re-renders
+- Optimistic updates for immediate UI feedback
 - Charts use ResponsiveContainer for optimal sizing
-- Lazy loading could be added for larger datasets
-- LocalStorage has ~5-10MB limit per domain
+- Efficient database queries with proper indexing
+- Real-time subscriptions for live data updates
 
 ## Troubleshooting
 
-### Data Not Persisting
-- Check if localStorage is enabled in browser
-- Verify not using incognito/private mode
-- Check browser storage quota
+### Authentication Issues
+- Verify Supabase credentials in environment variables
+- Check Google OAuth configuration in Supabase dashboard
+- Ensure email verification for new accounts
+
+### Data Not Syncing
+- Check internet connection
+- Verify Supabase service status
+- Check browser console for API errors
 
 ### Charts Not Displaying
 - Ensure data exists (add skills and entries first)
 - Check browser console for errors
 - Verify Recharts compatibility
 
-### Import/Export Issues
-- Ensure JSON file format matches expected structure
-- Check file permissions and browser security settings
-- Verify file size limits
+### Google OAuth Setup
+- Configure authorized JavaScript origins in Google Console
+- Set correct redirect URIs in Google Console
+- Verify Google OAuth credentials in Supabase
+
+## Database Schema
+
+The app uses PostgreSQL with the following main tables:
+- `skills` - User skills with priorities
+- `entries` - Time logging entries
+- `sessions` - Detailed timer sessions
+- `goals` - Skill-based goals and targets
+- `daily_tasks` - Daily task management
+- `feedback` - User feedback system
+
+All tables include Row Level Security (RLS) policies for data isolation.
+
+## Deployment
+
+### Frontend (Vercel)
+1. Connect your GitHub repository to Vercel
+2. Set environment variables in Vercel dashboard
+3. Deploy automatically on push to main branch
+
+### Backend (Supabase)
+1. Create new Supabase project
+2. Run database schema from `setup-database.sql`
+3. Configure authentication providers
+4. Set up RLS policies
 
 ## License
 
