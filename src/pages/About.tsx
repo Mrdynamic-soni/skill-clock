@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clock, Shield, Database, HelpCircle, Target, BarChart3, User, Settings, BookOpen, MessageSquare, Send } from 'lucide-react';
+import { Clock, Shield, Database, HelpCircle, Target, BarChart3, User, BookOpen, MessageSquare, Send } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { supabase } from '../lib/supabase';
 
@@ -198,7 +198,7 @@ export const About = () => {
 
       {/* Help Sections */}
       <div className="grid gap-6">
-        {sections.map((section, index) => (
+        {sections.map((section) => (
           <div
             key={section.title}
             className="bg-white rounded-lg shadow p-6"

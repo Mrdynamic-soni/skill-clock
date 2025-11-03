@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../services/supabaseService';
-import { supabase } from '../lib/supabase';
+
 
 export type Priority = 'low' | 'medium' | 'high';
 
@@ -63,6 +63,7 @@ export interface DailyTask {
   completed: boolean;
   createdAt: string;
   completedAt?: string;
+  date?: string;
 }
 
 export interface DailyTaskLog {
@@ -93,7 +94,7 @@ interface AppState {
   
   // Auth actions
   login: (credentials: { email: string; password: string }) => Promise<void>;
-  register: (userData: { email: string; password: string; name: string }) => Promise<void>;
+  register: (userData: { email: string; password: string; name: string }) => Promise<any>;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   syncFromServer: () => Promise<void>;
@@ -248,10 +249,10 @@ export const useAppStore = create<AppState>()(
             id: session.id,
             skillId: session.skill_id,
             date: session.date,
-            startTime: new Date(session.start_time).getTime(),
-            endTime: new Date(session.end_time).getTime(),
-            totalHours: session.total_hours,
-            notes: session.notes,
+            startTime: session.start_time ? new Date(session.start_time).getTime() : Date.now(),
+            endTime: session.end_time ? new Date(session.end_time).getTime() : Date.now(),
+            totalHours: session.total_hours || 0,
+            notes: session.notes || '',
             intervals: session.intervals || []
           }));
           
@@ -469,12 +470,24 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      addNoteToSession: (sessionId: string, notes: string) => {
+      addNoteToSession: async (sessionId: string, notes: string) => {
+        // Optimistic update
         set(state => ({
           sessions: state.sessions.map(session => 
             session.id === sessionId ? { ...session, notes } : session
           )
         }));
+        
+        try {
+          await apiService.updateSessionNotes(sessionId, notes);
+        } catch (error) {
+          // Revert on error
+          set(state => ({
+            sessions: state.sessions.map(session => 
+              session.id === sessionId ? { ...session, notes: session.notes } : session
+            )
+          }));
+        }
       },
 
       startTimer: (skillId: string) => {

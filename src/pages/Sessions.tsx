@@ -28,13 +28,7 @@ export const Sessions = () => {
   const getSkillName = (skillId: string) => 
     skills.find(skill => skill.id === skillId)?.name || 'Unknown Skill';
 
-  const formatTime = (timestamp: number) => 
-    new Date(timestamp).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
+
 
   const formatDuration = (hours: number) => {
     const totalSeconds = Math.floor(hours * 3600);
@@ -49,11 +43,15 @@ export const Sessions = () => {
     setNoteText(currentNote || '');
   };
 
-  const handleSaveNote = (sessionId: string) => {
-    addNoteToSession(sessionId, noteText.trim());
-    setEditingNote(null);
-    setNoteText('');
-    showToast('Note saved successfully', 'success');
+  const handleSaveNote = async (sessionId: string) => {
+    try {
+      await addNoteToSession(sessionId, noteText.trim());
+      setEditingNote(null);
+      setNoteText('');
+      showToast('Note saved successfully', 'success');
+    } catch (error) {
+      showToast('Failed to save note', 'error');
+    }
   };
 
   const handleCancelEdit = () => {

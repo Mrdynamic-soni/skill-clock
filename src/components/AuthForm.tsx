@@ -34,11 +34,11 @@ export const AuthForm = () => {
         navigate('/');
       } else {
         const result = await register(formData);
-        if (result?.user && !result?.session) {
+        if (result && result.user && !result.session) {
           // User created but needs email confirmation
           setJustSignedUp(true);
           showToast('Account created! Please check your email to verify your account.', 'success');
-        } else {
+        } else if (result && result.session) {
           // User created and logged in (confirmations disabled)
           showToast('Registration successful!', 'success');
           navigate('/');

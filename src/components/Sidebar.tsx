@@ -5,8 +5,6 @@ import LOGO from "../assets/LOGO.png";
 import {
   BarChart3,
   User,
-  Settings,
-  Info,
   Menu,
   Play,
   Target,
@@ -51,9 +49,7 @@ export const Sidebar = ({ mobileMenuOpen = false, setMobileMenuOpen }: SidebarPr
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const handleToggle = () => {
-    toggleSidebar();
-  };
+
 
   if (isMobile) {
     return (
@@ -66,7 +62,7 @@ export const Sidebar = ({ mobileMenuOpen = false, setMobileMenuOpen }: SidebarPr
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() => setMobileMenuOpen?.(false)}
               />
               <motion.div
                 className="fixed left-0 top-0 h-full w-48 bg-gray-900 text-white z-50 md:hidden"
@@ -79,7 +75,7 @@ export const Sidebar = ({ mobileMenuOpen = false, setMobileMenuOpen }: SidebarPr
                   <div className="flex items-center justify-between">
                     <img src={LOGO} alt="SkillClock" className="h-8" />
                     <button
-                      onClick={() => setMobileMenuOpen(false)}
+                      onClick={() => setMobileMenuOpen?.(false)}
                       className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
                     >
                       <X size={20} />
@@ -96,7 +92,7 @@ export const Sidebar = ({ mobileMenuOpen = false, setMobileMenuOpen }: SidebarPr
                       >
                         <NavLink
                           to={to}
-                          onClick={() => setMobileMenuOpen(false)}
+                          onClick={() => setMobileMenuOpen?.(false)}
                           className={({ isActive }) =>
                             `flex items-center p-3 rounded-lg transition-colors ${
                               isActive
