@@ -849,6 +849,13 @@ export const useAppStore = create<AppState>()(
         user: state.user,
         profile: state.profile,
         sidebarCollapsed: state.sidebarCollapsed,
+        skills: state.skills,
+        entries: state.entries,
+        sessions: state.sessions,
+        goals: state.goals,
+        dailyTasks: state.dailyTasks,
+        dailyTaskLogs: state.dailyTaskLogs,
+        activeTimer: state.activeTimer,
       }),
     }
   )
