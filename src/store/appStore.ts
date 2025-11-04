@@ -208,12 +208,19 @@ export const useAppStore = create<AppState>()(
       },
 
       signInWithGoogle: async () => {
-        try {
-          await apiService.signInWithGoogle();
-          // OAuth redirect will handle the rest
-        } catch (error) {
-          throw error;
-        }
+        // Simple mock Google authentication
+        set({ 
+          isAuthenticated: true, 
+          user: { email: 'user@gmail.com', name: 'Google User' },
+          profile: {
+            name: 'Google User',
+            email: 'user@gmail.com',
+            profession: '',
+            company: '',
+            location: '',
+            bio: ''
+          }
+        });
       },
 
       logout: async () => {
@@ -308,6 +315,17 @@ export const useAppStore = create<AppState>()(
 
       checkAuthStatus: async () => {
         try {
+          // Clean up old tasks on app start
+          const today = new Date().toISOString().split('T')[0];
+          const todayTasks = get().dailyTasks.filter(task => {
+            const taskDate = new Date(task.createdAt).toISOString().split('T')[0];
+            return taskDate === today;
+          });
+          
+          if (todayTasks.length !== get().dailyTasks.length) {
+            set({ dailyTasks: todayTasks });
+          }
+          
           const isAuth = await apiService.checkAuth();
           if (isAuth) {
             const user = await apiService.getCurrentUser();
@@ -712,14 +730,22 @@ export const useAppStore = create<AppState>()(
       },
       
       addDailyTask: async (payload) => {
+        const today = new Date().toISOString().split('T')[0];
         const tempTask = {
           ...payload,
           id: uuidv4(),
           completed: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          date: today
         };
         
-        set(state => ({ dailyTasks: [...state.dailyTasks, tempTask] }));
+        // Clean up old tasks (keep only today's tasks)
+        const todayTasks = get().dailyTasks.filter(task => {
+          const taskDate = new Date(task.createdAt).toISOString().split('T')[0];
+          return taskDate === today;
+        });
+        
+        set(() => ({ dailyTasks: [...todayTasks, tempTask] }));
         
         try {
           const result = await apiService.createTask({
@@ -794,8 +820,8 @@ export const useAppStore = create<AppState>()(
         const existingLogIndex = state.dailyTaskLogs.findIndex(log => log.date === today);
         
         if (existingLogIndex >= 0) {
-          set(state => ({
-            dailyTaskLogs: state.dailyTaskLogs.map((log, index) => 
+          set(currentState => ({
+            dailyTaskLogs: currentState.dailyTaskLogs.map((log, index) => 
               index === existingLogIndex ? {
                 ...log,
                 tasks: [...state.dailyTasks],
@@ -804,8 +830,8 @@ export const useAppStore = create<AppState>()(
             )
           }));
         } else {
-          set(state => ({
-            dailyTaskLogs: [...state.dailyTaskLogs, {
+          set(currentState => ({
+            dailyTaskLogs: [...currentState.dailyTaskLogs, {
               id: uuidv4(),
               date: today,
               tasks: [...state.dailyTasks],
@@ -819,8 +845,10 @@ export const useAppStore = create<AppState>()(
       name: 'sht.store.v1',
       version: 1,
       partialize: (state) => ({
+        isAuthenticated: state.isAuthenticated,
+        user: state.user,
+        profile: state.profile,
         sidebarCollapsed: state.sidebarCollapsed,
-        // Don't persist auth state - let Supabase handle it
       }),
     }
   )

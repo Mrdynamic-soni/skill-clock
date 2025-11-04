@@ -1,62 +1,111 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CheckSquare, Square, Plus, Trash2, Calendar, TrendingUp, BarChart3, Edit } from 'lucide-react';
-import { useAppStore } from '../store/appStore';
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  CheckSquare,
+  Square,
+  Plus,
+  Trash2,
+  Calendar,
+  TrendingUp,
+  BarChart3,
+  Edit,
+} from "lucide-react";
+import { useAppStore } from "../store/appStore";
 
 export const DailyTasks = () => {
-  const { dailyTasks, dailyTaskLogs, addDailyTask, toggleDailyTask, deleteDailyTask, saveDailyLog } = useAppStore();
+  const {
+    dailyTasks: allTasks,
+    dailyTaskLogs,
+    addDailyTask,
+    toggleDailyTask,
+    deleteDailyTask,
+    saveDailyLog,
+  } = useAppStore();
+
+  // Filter tasks for today only
+  const today = new Date().toISOString().split("T")[0];
+  const todayTasks = allTasks.filter((task) => {
+    const taskDate = new Date(task.createdAt).toISOString().split("T")[0];
+    return taskDate === today;
+  });
+
+  // Sort tasks: unchecked first (by creation time), then checked (by completion time)
+  const dailyTasks = [...todayTasks].sort((a, b) => {
+    if (a.completed && !b.completed) return 1;
+    if (!a.completed && b.completed) return -1;
+
+    if (!a.completed && !b.completed) {
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    }
+
+    if (a.completed && b.completed) {
+      const aCompletedTime = a.completedAt
+        ? new Date(a.completedAt).getTime()
+        : 0;
+      const bCompletedTime = b.completedAt
+        ? new Date(b.completedAt).getTime()
+        : 0;
+      return aCompletedTime - bCompletedTime;
+    }
+
+    return 0;
+  });
   const [showAddForm, setShowAddForm] = useState(false);
-  const [viewMode, setViewMode] = useState<'today' | 'history'>('today');
-  const [historyPeriod, setHistoryPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
-  const [newTask, setNewTask] = useState({ title: '', description: '' });
+  const [viewMode, setViewMode] = useState<"today" | "history">("today");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [newTask, setNewTask] = useState({ title: "", description: "" });
   const [editingTask, setEditingTask] = useState<string | null>(null);
-  const [editTask, setEditTask] = useState({ title: '', description: '' });
+  const [editTask, setEditTask] = useState({ title: "", description: "" });
 
   useEffect(() => {
     saveDailyLog();
-  }, [dailyTasks, saveDailyLog]);
+  }, [saveDailyLog]);
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTask.title.trim()) return;
-    
+
     addDailyTask({
       title: newTask.title.trim(),
-      description: newTask.description.trim() || undefined
+      description: newTask.description.trim() || undefined,
     });
-    
-    setNewTask({ title: '', description: '' });
+
+    setNewTask({ title: "", description: "" });
     setShowAddForm(false);
   };
 
   const handleEditTask = (task: any) => {
     setEditingTask(task.id);
-    setEditTask({ title: task.title, description: task.description || '' });
+    setEditTask({ title: task.title, description: task.description || "" });
   };
 
   const handleSaveEdit = () => {
     if (!editTask.title.trim()) return;
-    
+
     // Update task in store (we need to add this action)
-    const updatedTasks = dailyTasks.map(task => 
-      task.id === editingTask 
-        ? { ...task, title: editTask.title.trim(), description: editTask.description.trim() || undefined }
+    const updatedTasks = dailyTasks.map((task) =>
+      task.id === editingTask
+        ? {
+            ...task,
+            title: editTask.title.trim(),
+            description: editTask.description.trim() || undefined,
+          }
         : task
     );
-    
+
     useAppStore.setState(() => ({ dailyTasks: updatedTasks }));
-    
+
     setEditingTask(null);
-    setEditTask({ title: '', description: '' });
+    setEditTask({ title: "", description: "" });
   };
 
   const handleCancelEdit = () => {
     setEditingTask(null);
-    setEditTask({ title: '', description: '' });
+    setEditTask({ title: "", description: "" });
   };
 
   const getTodayStats = () => {
-    const completed = dailyTasks.filter(task => task.completed).length;
+    const completed = dailyTasks.filter((task) => task.completed).length;
     const total = dailyTasks.length;
     const percentage = total > 0 ? (completed / total) * 100 : 0;
     return { completed, total, percentage };
@@ -65,22 +114,28 @@ export const DailyTasks = () => {
   const getConsistencyStats = () => {
     const last7Days = dailyTaskLogs.slice(-7);
     const last30Days = dailyTaskLogs.slice(-30);
-    
-    const avg7Days = last7Days.length > 0 
-      ? last7Days.reduce((sum, log) => sum + log.completionRate, 0) / last7Days.length 
-      : 0;
-    
-    const avg30Days = last30Days.length > 0 
-      ? last30Days.reduce((sum, log) => sum + log.completionRate, 0) / last30Days.length 
-      : 0;
+
+    const avg7Days =
+      last7Days.length > 0
+        ? last7Days.reduce((sum, log) => sum + log.completionRate, 0) /
+          last7Days.length
+        : 0;
+
+    const avg30Days =
+      last30Days.length > 0
+        ? last30Days.reduce((sum, log) => sum + log.completionRate, 0) /
+          last30Days.length
+        : 0;
 
     return { avg7Days, avg30Days, streak: calculateStreak() };
   };
 
   const calculateStreak = () => {
     let streak = 0;
-    const sortedLogs = [...dailyTaskLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    
+    const sortedLogs = [...dailyTaskLogs].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
     for (const log of sortedLogs) {
       if (log.completionRate >= 80) {
         streak++;
@@ -92,54 +147,44 @@ export const DailyTasks = () => {
   };
 
   const getHistoryData = () => {
-    const sortedLogs = [...dailyTaskLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    
-    if (historyPeriod === 'daily') {
-      return sortedLogs.slice(0, 30);
-    } else if (historyPeriod === 'weekly') {
-      const weeklyData: { week: string; completionRate: number; taskCount: number }[] = [];
-      const weeks = new Map<string, { rates: number[]; tasks: number }>();
-      
-      sortedLogs.forEach(log => {
-        const date = new Date(log.date);
-        const weekStart = new Date(date.setDate(date.getDate() - date.getDay()));
-        const weekKey = weekStart.toISOString().split('T')[0];
-        
-        if (!weeks.has(weekKey)) {
-          weeks.set(weekKey, { rates: [], tasks: 0 });
-        }
-        weeks.get(weekKey)!.rates.push(log.completionRate);
-        weeks.get(weekKey)!.tasks += log.tasks.length;
-      });
-      
-      weeks.forEach((data, week) => {
-        const avgRate = data.rates.reduce((sum, rate) => sum + rate, 0) / data.rates.length;
-        weeklyData.push({ week, completionRate: avgRate, taskCount: data.tasks });
-      });
-      
-      return weeklyData.slice(0, 12);
-    } else {
-      const monthlyData: { month: string; completionRate: number; taskCount: number }[] = [];
-      const months = new Map<string, { rates: number[]; tasks: number }>();
-      
-      sortedLogs.forEach(log => {
-        const date = new Date(log.date);
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        
-        if (!months.has(monthKey)) {
-          months.set(monthKey, { rates: [], tasks: 0 });
-        }
-        months.get(monthKey)!.rates.push(log.completionRate);
-        months.get(monthKey)!.tasks += log.tasks.length;
-      });
-      
-      months.forEach((data, month) => {
-        const avgRate = data.rates.reduce((sum, rate) => sum + rate, 0) / data.rates.length;
-        monthlyData.push({ month, completionRate: avgRate, taskCount: data.tasks });
-      });
-      
-      return monthlyData.slice(0, 12);
-    }
+    return [...dailyTaskLogs]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 30);
+  };
+
+  const getSelectedDateData = (date: string) => {
+    const log = dailyTaskLogs.find((log) => log.date === date);
+    if (!log) return null;
+
+    const completed = log.tasks.filter((task) => task.completed).length;
+    const total = log.tasks.length;
+    const percentage = total > 0 ? (completed / total) * 100 : 0;
+
+    // Sort tasks same way as today: unchecked first, checked last
+    const sortedTasks = [...log.tasks].sort((a, b) => {
+      if (a.completed && !b.completed) return 1;
+      if (!a.completed && b.completed) return -1;
+
+      if (!a.completed && !b.completed) {
+        return (
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      }
+
+      if (a.completed && b.completed) {
+        const aCompletedTime = a.completedAt
+          ? new Date(a.completedAt).getTime()
+          : 0;
+        const bCompletedTime = b.completedAt
+          ? new Date(b.completedAt).getTime()
+          : 0;
+        return aCompletedTime - bCompletedTime;
+      }
+
+      return 0;
+    });
+
+    return { ...log, tasks: sortedTasks, completed, total, percentage };
   };
 
   const todayStats = getTodayStats();
@@ -155,27 +200,30 @@ export const DailyTasks = () => {
         <div className="flex gap-3">
           <div className="flex bg-gray-100 rounded-lg p-1">
             <button
-              onClick={() => setViewMode('today')}
+              onClick={() => setViewMode("today")}
               className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                viewMode === 'today' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'
+                viewMode === "today"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-600"
               }`}
             >
               Today
             </button>
             <button
-              onClick={() => setViewMode('history')}
+              onClick={() => setViewMode("history")}
               className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                viewMode === 'history' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'
+                viewMode === "history"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-600"
               }`}
             >
               History
             </button>
           </div>
-
         </div>
       </div>
 
-      {viewMode === 'today' ? (
+      {viewMode === "today" ? (
         <>
           {/* Today's Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -183,7 +231,9 @@ export const DailyTasks = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Completed</p>
-                  <p className="text-2xl font-bold text-green-600">{todayStats.completed}/{todayStats.total}</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {todayStats.completed}/{todayStats.total}
+                  </p>
                 </div>
                 <CheckSquare className="text-green-500" size={24} />
               </div>
@@ -192,7 +242,9 @@ export const DailyTasks = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Progress</p>
-                  <p className="text-2xl font-bold text-blue-600">{todayStats.percentage.toFixed(0)}%</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {todayStats.percentage.toFixed(0)}%
+                  </p>
                 </div>
                 <TrendingUp className="text-blue-500" size={24} />
               </div>
@@ -201,7 +253,9 @@ export const DailyTasks = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">7-Day Avg</p>
-                  <p className="text-2xl font-bold text-purple-600">{consistencyStats.avg7Days.toFixed(0)}%</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {consistencyStats.avg7Days.toFixed(0)}%
+                  </p>
                 </div>
                 <BarChart3 className="text-purple-500" size={24} />
               </div>
@@ -210,7 +264,9 @@ export const DailyTasks = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Streak</p>
-                  <p className="text-2xl font-bold text-orange-600">{consistencyStats.streak} days</p>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {consistencyStats.streak} days
+                  </p>
                 </div>
                 <Calendar className="text-orange-500" size={24} />
               </div>
@@ -226,21 +282,29 @@ export const DailyTasks = () => {
             >
               <form onSubmit={handleAddTask} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Task Title</label>
+                  <label className="block text-sm font-medium mb-1">
+                    Task Title
+                  </label>
                   <input
                     type="text"
                     value={newTask.title}
-                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                    onChange={(e) =>
+                      setNewTask({ ...newTask, title: e.target.value })
+                    }
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter task title..."
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Description (Optional)</label>
+                  <label className="block text-sm font-medium mb-1">
+                    Description (Optional)
+                  </label>
                   <textarea
                     value={newTask.description}
-                    onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                    onChange={(e) =>
+                      setNewTask({ ...newTask, description: e.target.value })
+                    }
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     rows={2}
                     placeholder="Add details about this task..."
@@ -290,7 +354,9 @@ export const DailyTasks = () => {
                       <motion.div
                         key={task.id}
                         className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
-                          task.completed ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                          task.completed
+                            ? "bg-green-50 border-green-200"
+                            : "bg-gray-50 border-gray-200"
                         }`}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -299,10 +365,16 @@ export const DailyTasks = () => {
                         <button
                           onClick={() => toggleDailyTask(task.id)}
                           className={`mt-0.5 transition-colors ${
-                            task.completed ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'
+                            task.completed
+                              ? "text-green-600"
+                              : "text-gray-400 hover:text-gray-600"
                           }`}
                         >
-                          {task.completed ? <CheckSquare size={20} /> : <Square size={20} />}
+                          {task.completed ? (
+                            <CheckSquare size={20} />
+                          ) : (
+                            <Square size={20} />
+                          )}
                         </button>
                         <div className="flex-1">
                           {editingTask === task.id ? (
@@ -310,13 +382,23 @@ export const DailyTasks = () => {
                               <input
                                 type="text"
                                 value={editTask.title}
-                                onChange={(e) => setEditTask({ ...editTask, title: e.target.value })}
+                                onChange={(e) =>
+                                  setEditTask({
+                                    ...editTask,
+                                    title: e.target.value,
+                                  })
+                                }
                                 className="w-full px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-blue-500"
                                 autoFocus
                               />
                               <textarea
                                 value={editTask.description}
-                                onChange={(e) => setEditTask({ ...editTask, description: e.target.value })}
+                                onChange={(e) =>
+                                  setEditTask({
+                                    ...editTask,
+                                    description: e.target.value,
+                                  })
+                                }
                                 className="w-full px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-blue-500 resize-none"
                                 rows={2}
                                 placeholder="Description (optional)"
@@ -338,17 +420,32 @@ export const DailyTasks = () => {
                             </div>
                           ) : (
                             <>
-                              <h3 className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+                              <h3
+                                className={`font-medium ${
+                                  task.completed
+                                    ? "line-through text-gray-500"
+                                    : "text-gray-900"
+                                }`}
+                              >
                                 {task.title}
                               </h3>
                               {task.description && (
-                                <p className={`text-sm mt-1 ${task.completed ? 'line-through text-gray-400' : 'text-gray-600'}`}>
+                                <p
+                                  className={`text-sm mt-1 ${
+                                    task.completed
+                                      ? "line-through text-gray-400"
+                                      : "text-gray-600"
+                                  }`}
+                                >
                                   {task.description}
                                 </p>
                               )}
                               {task.completedAt && (
                                 <p className="text-xs text-green-600 mt-1">
-                                  Completed at {new Date(task.completedAt).toLocaleTimeString()}
+                                  Completed at{" "}
+                                  {new Date(
+                                    task.completedAt
+                                  ).toLocaleTimeString()}
                                 </p>
                               )}
                             </>
@@ -381,57 +478,212 @@ export const DailyTasks = () => {
       ) : (
         <>
           {/* History View */}
-          <div className="flex gap-3 mb-4">
-            <select
-              value={historyPeriod}
-              onChange={(e) => setHistoryPeriod(e.target.value as any)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="daily">Daily View</option>
-              <option value="weekly">Weekly View</option>
-              <option value="monthly">Monthly View</option>
-            </select>
-          </div>
+          {selectedDate ? (
+            <>
+              {/* Selected Date Detail View */}
+              <div className="flex items-center gap-4 mb-4">
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  ← Back to History
+                </button>
+                <h2 className="text-xl font-semibold">
+                  {new Date(selectedDate).toLocaleDateString("en-US", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </h2>
+              </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Consistency History</h2>
-            <div className="space-y-4">
-              {getHistoryData().map((item: any, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">
-                      {historyPeriod === 'daily' 
-                        ? new Date(item.date).toLocaleDateString()
-                        : historyPeriod === 'weekly'
-                        ? `Week of ${new Date(item.week).toLocaleDateString()}`
-                        : `${item.month}`
-                      }
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {historyPeriod === 'daily' 
-                        ? `${item.tasks.filter((t: any) => t.completed).length}/${item.tasks.length} tasks`
-                        : `${item.taskCount} tasks`
-                      }
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-32 bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${
-                          item.completionRate >= 80 ? 'bg-green-500' :
-                          item.completionRate >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                        }`}
-                        style={{ width: `${item.completionRate}%` }}
-                      />
+              {(() => {
+                const dateData = getSelectedDateData(selectedDate);
+                if (!dateData) return <div>No data for this date</div>;
+
+                return (
+                  <>
+                    {/* Date Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className="bg-white rounded-lg shadow p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm text-gray-600">Completed</p>
+                            <p className="text-2xl font-bold text-green-600">
+                              {dateData.completed}/{dateData.total}
+                            </p>
+                          </div>
+                          <CheckSquare className="text-green-500" size={24} />
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-lg shadow p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm text-gray-600">Progress</p>
+                            <p className="text-2xl font-bold text-blue-600">
+                              {dateData.percentage.toFixed(0)}%
+                            </p>
+                          </div>
+                          <TrendingUp className="text-blue-500" size={24} />
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-lg shadow p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm text-gray-600">Total Tasks</p>
+                            <p className="text-2xl font-bold text-purple-600">
+                              {dateData.total}
+                            </p>
+                          </div>
+                          <BarChart3 className="text-purple-500" size={24} />
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-sm font-medium w-12 text-right">
-                      {item.completionRate.toFixed(0)}%
-                    </span>
-                  </div>
+
+                    {/* Date Tasks */}
+                    <div className="bg-white rounded-lg shadow">
+                      <div className="p-4 border-b">
+                        <h3 className="text-lg font-semibold">
+                          Tasks for this day
+                        </h3>
+                      </div>
+                      <div className="p-4">
+                        {dateData.tasks.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <CheckSquare
+                              size={48}
+                              className="mx-auto mb-4 opacity-50"
+                            />
+                            <p>No tasks recorded for this day</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {dateData.tasks.map((task: any) => (
+                              <div
+                                key={task.id}
+                                className={`flex items-start gap-3 p-3 rounded-lg border ${
+                                  task.completed
+                                    ? "bg-green-50 border-green-200"
+                                    : "bg-gray-50 border-gray-200"
+                                }`}
+                              >
+                                <div
+                                  className={`mt-0.5 ${
+                                    task.completed
+                                      ? "text-green-600"
+                                      : "text-gray-400"
+                                  }`}
+                                >
+                                  {task.completed ? (
+                                    <CheckSquare size={20} />
+                                  ) : (
+                                    <Square size={20} />
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <h4
+                                    className={`font-medium ${
+                                      task.completed
+                                        ? "line-through text-gray-500"
+                                        : "text-gray-900"
+                                    }`}
+                                  >
+                                    {task.title}
+                                  </h4>
+                                  {task.description && (
+                                    <p
+                                      className={`text-sm mt-1 ${
+                                        task.completed
+                                          ? "line-through text-gray-400"
+                                          : "text-gray-600"
+                                      }`}
+                                    >
+                                      {task.description}
+                                    </p>
+                                  )}
+                                  <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                                    <span>
+                                      Created:{" "}
+                                      {new Date(
+                                        task.createdAt
+                                      ).toLocaleTimeString()}
+                                    </span>
+                                    {task.completedAt && (
+                                      <span className="text-green-600">
+                                        Completed:{" "}
+                                        {new Date(
+                                          task.completedAt
+                                        ).toLocaleTimeString()}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </>
+          ) : (
+            <>
+              {/* History List View */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold mb-4">Task History</h2>
+                <div className="space-y-3">
+                  {getHistoryData().map((item: any) => (
+                    <div
+                      key={item.date}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                      onClick={() => setSelectedDate(item.date)}
+                    >
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {new Date(item.date).toLocaleDateString("en-US", {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {item.tasks.filter((t: any) => t.completed).length}/
+                          {item.tasks.length} tasks completed
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              item.completionRate >= 80
+                                ? "bg-green-500"
+                                : item.completionRate >= 60
+                                ? "bg-yellow-500"
+                                : "bg-red-500"
+                            }`}
+                            style={{ width: `${item.completionRate}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium w-10 text-right">
+                          {item.completionRate.toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {getHistoryData().length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Calendar size={48} className="mx-auto mb-4 opacity-50" />
+                      <p>No task history available yet</p>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

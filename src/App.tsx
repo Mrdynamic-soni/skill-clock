@@ -72,9 +72,10 @@ const Layout = () => {
 };
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAppStore();
+  const { isAuthenticated, user } = useAppStore();
 
-  if (!isAuthenticated) {
+  // Check if user exists in addition to isAuthenticated flag
+  if (!isAuthenticated || !user) {
     return <AuthForm />;
   }
 
@@ -133,6 +134,7 @@ const App = () => {
           <Route path="terms" element={<TermsOfService />} />
           <Route path="contact" element={<Contact />} />
           <Route path="admin" element={<Admin />} />
+          <Route path="*" element={<Skills />} />
         </Route>
       </Routes>
     </Router>
