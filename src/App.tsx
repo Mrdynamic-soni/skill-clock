@@ -23,10 +23,11 @@ import { PrivacyPolicy } from "./pages/PrivacyPolicy";
 import { TermsOfService } from "./pages/TermsOfService";
 import { Contact } from "./pages/Contact";
 import { Admin } from "./pages/Admin";
+import { ResetPassword } from "./pages/ResetPassword";
 import { useAppStore } from "./store/appStore";
 import { useEffect, useState } from "react";
 import { AuthForm } from "./components/AuthForm";
-import { supabase } from "./lib/supabase";
+
 
 const Layout = () => {
   const { toasts, removeToast } = useToast();
@@ -74,7 +75,6 @@ const Layout = () => {
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, user } = useAppStore();
 
-  // Check if user exists in addition to isAuthenticated flag
   if (!isAuthenticated || !user) {
     return <AuthForm />;
   }
@@ -86,42 +86,20 @@ const App = () => {
   const { checkAuthStatus } = useAppStore();
 
   useEffect(() => {
-    // Handle OAuth callback hash
-    if (window.location.hash && window.location.hash.includes('access_token')) {
-      // Clean up the URL hash after OAuth
-      window.history.replaceState(null, '', window.location.pathname);
-    }
-    
     checkAuthStatus();
-    
-    // Handle OAuth callback and auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        checkAuthStatus();
-        // Clean up URL hash if present
-        if (window.location.hash) {
-          window.history.replaceState(null, '', window.location.pathname);
-        }
-      } else if (event === 'SIGNED_OUT') {
-        checkAuthStatus();
-      }
-    });
-    
-    return () => subscription.unsubscribe();
   }, [checkAuthStatus]);
 
   return (
     <Router>
       <Routes>
-        <Route path="/auth" element={<AuthForm />} />
-        <Route
-          path="/*"
-          element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }
-        >
+        <Route path="/login" element={<AuthForm />} />
+        <Route path="/forgot-password" element={<AuthForm forgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
           <Route index element={<Skills />} />
           <Route path="timer" element={<Timer />} />
           <Route path="sessions" element={<Sessions />} />
@@ -134,8 +112,8 @@ const App = () => {
           <Route path="terms" element={<TermsOfService />} />
           <Route path="contact" element={<Contact />} />
           <Route path="admin" element={<Admin />} />
-          <Route path="*" element={<Skills />} />
         </Route>
+        <Route path="*" element={<AuthForm />} />
       </Routes>
     </Router>
   );

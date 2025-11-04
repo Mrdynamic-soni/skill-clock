@@ -61,6 +61,14 @@ class SupabaseService {
     return data;
   }
 
+  async resetPassword(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`
+    });
+    if (error) throw error;
+    return { message: 'Password reset email sent' };
+  }
+
   async logout() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;

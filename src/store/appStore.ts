@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../services/supabaseService';
+import { supabase } from '../lib/supabase';
 
 
 export type Priority = 'low' | 'medium' | 'high';
@@ -208,24 +209,17 @@ export const useAppStore = create<AppState>()(
       },
 
       signInWithGoogle: async () => {
-        // Simple mock Google authentication
-        set({ 
-          isAuthenticated: true, 
-          user: { email: 'user@gmail.com', name: 'Google User' },
-          profile: {
-            name: 'Google User',
-            email: 'user@gmail.com',
-            profession: '',
-            company: '',
-            location: '',
-            bio: ''
-          }
-        });
+        try {
+          await apiService.signInWithGoogle();
+          // OAuth redirect will handle the rest
+        } catch (error) {
+          throw error;
+        }
       },
 
       logout: async () => {
         try {
-          await apiService.logout();
+          await supabase.auth.signOut();
           set({
             isAuthenticated: false,
             user: null,
@@ -234,10 +228,24 @@ export const useAppStore = create<AppState>()(
             sessions: [],
             goals: [],
             dailyTasks: [],
+            dailyTaskLogs: [],
+            activeTimer: null,
             profile: initialProfile,
           });
         } catch (error) {
-          // Logout error handled silently
+          // Force logout even if API fails
+          set({
+            isAuthenticated: false,
+            user: null,
+            skills: [],
+            entries: [],
+            sessions: [],
+            goals: [],
+            dailyTasks: [],
+            dailyTaskLogs: [],
+            activeTimer: null,
+            profile: initialProfile,
+          });
         }
       },
 
@@ -315,26 +323,14 @@ export const useAppStore = create<AppState>()(
 
       checkAuthStatus: async () => {
         try {
-          // Clean up old tasks on app start
-          const today = new Date().toISOString().split('T')[0];
-          const todayTasks = get().dailyTasks.filter(task => {
-            const taskDate = new Date(task.createdAt).toISOString().split('T')[0];
-            return taskDate === today;
-          });
-          
-          if (todayTasks.length !== get().dailyTasks.length) {
-            set({ dailyTasks: todayTasks });
-          }
-          
-          const isAuth = await apiService.checkAuth();
-          if (isAuth) {
-            const user = await apiService.getCurrentUser();
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
             set({ 
               isAuthenticated: true, 
-              user,
+              user: session.user,
               profile: {
-                name: user?.user_metadata?.name || '',
-                email: user?.email || '',
+                name: session.user.user_metadata?.name || '',
+                email: session.user.email || '',
                 profession: '',
                 company: '',
                 location: '',
@@ -343,10 +339,32 @@ export const useAppStore = create<AppState>()(
             });
             await get().syncFromServer();
           } else {
-            set({ isAuthenticated: false, user: null });
+            set({ 
+              isAuthenticated: false, 
+              user: null,
+              skills: [],
+              entries: [],
+              sessions: [],
+              goals: [],
+              dailyTasks: [],
+              dailyTaskLogs: [],
+              activeTimer: null,
+              profile: initialProfile
+            });
           }
         } catch (error) {
-          set({ isAuthenticated: false, user: null });
+          set({ 
+            isAuthenticated: false, 
+            user: null,
+            skills: [],
+            entries: [],
+            sessions: [],
+            goals: [],
+            dailyTasks: [],
+            dailyTaskLogs: [],
+            activeTimer: null,
+            profile: initialProfile
+          });
         }
       },
 

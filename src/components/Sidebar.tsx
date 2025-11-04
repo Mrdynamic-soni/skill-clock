@@ -34,8 +34,12 @@ interface SidebarProps {
   setMobileMenuOpen?: (open: boolean) => void;
 }
 
-export const Sidebar = ({ mobileMenuOpen = false, setMobileMenuOpen }: SidebarProps = {}) => {
-  const { sidebarCollapsed, toggleSidebar, logout, activeTimer, endTimer } = useAppStore();
+export const Sidebar = ({
+  mobileMenuOpen = false,
+  setMobileMenuOpen,
+}: SidebarProps = {}) => {
+  const { sidebarCollapsed, toggleSidebar, logout, activeTimer, endTimer } =
+    useAppStore();
   const [isMobile, setIsMobile] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showTimerModal, setShowTimerModal] = useState(false);
@@ -48,8 +52,6 @@ export const Sidebar = ({ mobileMenuOpen = false, setMobileMenuOpen }: SidebarPr
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
-
-
 
   if (isMobile) {
     return (
@@ -129,13 +131,15 @@ export const Sidebar = ({ mobileMenuOpen = false, setMobileMenuOpen }: SidebarPr
             </>
           )}
         </AnimatePresence>
-        
+
         <Modal
           isOpen={showTimerModal}
           onClose={() => setShowTimerModal(false)}
           title="Active Timer Session"
         >
-          <p className="text-gray-600 mb-6">You have an active timer session. Please end it before logging out.</p>
+          <p className="text-gray-600 mb-6">
+            You have an active timer session. Please end it before logging out.
+          </p>
           <div className="flex gap-3 justify-end">
             <button
               onClick={() => setShowTimerModal(false)}
@@ -155,7 +159,7 @@ export const Sidebar = ({ mobileMenuOpen = false, setMobileMenuOpen }: SidebarPr
             </button>
           </div>
         </Modal>
-        
+
         <Modal
           isOpen={showLogoutModal}
           onClose={() => setShowLogoutModal(false)}
@@ -170,9 +174,10 @@ export const Sidebar = ({ mobileMenuOpen = false, setMobileMenuOpen }: SidebarPr
               Cancel
             </button>
             <button
-              onClick={() => {
-                logout();
+              onClick={async () => {
+                await logout();
                 setShowLogoutModal(false);
+                setMobileMenuOpen?.(false);
               }}
               className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
             >
@@ -287,13 +292,15 @@ export const Sidebar = ({ mobileMenuOpen = false, setMobileMenuOpen }: SidebarPr
           </div>
         </nav>
       </motion.div>
-      
+
       <Modal
         isOpen={showTimerModal}
         onClose={() => setShowTimerModal(false)}
         title="Active Timer Session"
       >
-        <p className="text-gray-600 mb-6">You have an active timer session. Please end it before logging out.</p>
+        <p className="text-gray-600 mb-6">
+          You have an active timer session. Please end it before logging out.
+        </p>
         <div className="flex gap-3 justify-end">
           <button
             onClick={() => setShowTimerModal(false)}
@@ -313,7 +320,7 @@ export const Sidebar = ({ mobileMenuOpen = false, setMobileMenuOpen }: SidebarPr
           </button>
         </div>
       </Modal>
-      
+
       <Modal
         isOpen={showLogoutModal}
         onClose={() => setShowLogoutModal(false)}
@@ -328,8 +335,8 @@ export const Sidebar = ({ mobileMenuOpen = false, setMobileMenuOpen }: SidebarPr
             Cancel
           </button>
           <button
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              await logout();
               setShowLogoutModal(false);
             }}
             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"

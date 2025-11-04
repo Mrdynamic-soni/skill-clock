@@ -6,22 +6,24 @@ import { useToast } from "../hooks/useToast";
 import { supabase } from "../lib/supabase";
 import { motion } from "framer-motion";
 
-export const AuthForm = () => {
-  const [isLogin, setIsLogin] = useState(true);
+export const AuthForm = ({ forgotPassword = false }: { forgotPassword?: boolean } = {}) => {
+  const [isLogin, setIsLogin] = useState(!forgotPassword);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     name: "",
   });
   const [loading, setLoading] = useState(false);
-  // const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [justSignedUp, setJustSignedUp] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isForgotPassword, setIsForgotPassword] = useState(forgotPassword);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   const { login, register } = useAppStore();
-  // const { signInWithGoogle } = useAppStore(); // For future use
+  const { signInWithGoogle } = useAppStore();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -30,10 +32,16 @@ export const AuthForm = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (isForgotPassword) {
+        const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+          redirectTo: `${window.location.origin}/reset-password`
+        });
+        if (error) throw error;
+        setResetEmailSent(true);
+        showToast("Password reset email sent! Check your inbox.", "success");
+      } else if (isLogin) {
         await login({ email: formData.email, password: formData.password });
         showToast("Login successful!", "success");
-        navigate("/");
       } else {
         const result = await register(formData);
         if (result && result.user && !result.session) {
@@ -46,7 +54,6 @@ export const AuthForm = () => {
         } else if (result && result.session) {
           // User created and logged in (confirmations disabled)
           showToast("Registration successful!", "success");
-          navigate("/");
         }
       }
     } catch (error: any) {
@@ -117,19 +124,19 @@ export const AuthForm = () => {
     }
   };
 
-  // const handleGoogleSignIn = async () => {
-  //   setGoogleLoading(true);
-  //   setErrorMessage("");
-  //   try {
-  //     await signInWithGoogle();
-  //     // OAuth redirect will handle the rest, don't set loading to false here
-  //   } catch (error: any) {
-  //     setErrorMessage(
-  //       error.message || "Google sign-in failed. Please try again."
-  //     );
-  //     setGoogleLoading(false);
-  //   }
-  // };
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setErrorMessage("");
+    try {
+      await signInWithGoogle();
+      // OAuth redirect will handle the rest, don't set loading to false here
+    } catch (error: any) {
+      setErrorMessage(
+        error.message || "Google sign-in failed. Please try again."
+      );
+      setGoogleLoading(false);
+    }
+  };
 
   const handleResendConfirmation = async () => {
     if (!formData.email) {
@@ -187,7 +194,7 @@ export const AuthForm = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            {isLogin ? "✨ Welcome back!" : "🚀 Start your journey"}
+            {isForgotPassword ? "🔑 Reset your password" : isLogin ? "✨ Welcome back!" : "🚀 Start your journey"}
           </motion.p>
           <motion.div
             className="mt-4 text-center max-w-sm mx-auto"
@@ -226,7 +233,7 @@ export const AuthForm = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {!isLogin && (
+            {!isLogin && !isForgotPassword && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
@@ -276,10 +283,11 @@ export const AuthForm = () => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Password
-              </label>
+            {!isForgotPassword && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Password
+                </label>
               <div className="relative">
                 <Lock
                   className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -304,7 +312,8 @@ export const AuthForm = () => {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-            </div>
+              </div>
+            )}
 
             <motion.button
               type="submit"
@@ -317,15 +326,15 @@ export const AuthForm = () => {
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <>
-                  <span>{isLogin ? "Sign In" : "Sign Up"}</span>
+                  <span>{isForgotPassword ? "Send Reset Email" : isLogin ? "Sign In" : "Sign Up"}</span>
                   <ArrowRight size={18} />
                 </>
               )}
             </motion.button>
           </form>
 
-          {/* Google Sign-in - Hidden for now */}
-          {/* {false && (
+          {/* Google Sign-in */}
+          {true && (
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
@@ -340,12 +349,12 @@ export const AuthForm = () => {
 
               <motion.button
                 onClick={handleGoogleSignIn}
-                disabled={loading}
+                disabled={loading || googleLoading}
                 className="mt-4 w-full flex justify-center items-center gap-3 py-3 px-4 border border-gray-200 rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md font-medium"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {false ? (
+                {googleLoading ? (
                   <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
                 ) : (
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -372,7 +381,7 @@ export const AuthForm = () => {
                 </span>
               </motion.button>
             </div>
-          )} */}
+          )}
 
           {(needsConfirmation || justSignedUp) && (
             <motion.div
@@ -433,30 +442,71 @@ export const AuthForm = () => {
             </motion.div>
           )}
 
-          <div className="text-center pt-4">
-            {!justSignedUp && (
-              <motion.button
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setNeedsConfirmation(false);
-                  setJustSignedUp(false);
-                  setErrorMessage("");
-                }}
-                className="text-sm text-gray-600 hover:text-blue-600 transition-colors font-medium"
-                whileHover={{ scale: 1.05 }}
-              >
-                {isLogin ? (
-                  <span>
-                    Don't have an account?{" "}
-                    <span className="text-blue-600 font-semibold">Sign up</span>
-                  </span>
-                ) : (
-                  <span>
-                    Already have an account?{" "}
-                    <span className="text-blue-600 font-semibold">Sign in</span>
-                  </span>
+          <div className="text-center pt-4 space-y-2">
+            {!justSignedUp && !resetEmailSent && (
+              <>
+                <motion.button
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setIsForgotPassword(false);
+                    setNeedsConfirmation(false);
+                    setJustSignedUp(false);
+                    setErrorMessage("");
+                  }}
+                  className="text-sm text-gray-600 hover:text-blue-600 transition-colors font-medium block"
+                  whileHover={{ scale: 1.05 }}
+                >
+                  {isForgotPassword ? (
+                    <span>
+                      Remember your password?{" "}
+                      <span className="text-blue-600 font-semibold">Sign in</span>
+                    </span>
+                  ) : isLogin ? (
+                    <span>
+                      Don't have an account?{" "}
+                      <span className="text-blue-600 font-semibold">Sign up</span>
+                    </span>
+                  ) : (
+                    <span>
+                      Already have an account?{" "}
+                      <span className="text-blue-600 font-semibold">Sign in</span>
+                    </span>
+                  )}
+                </motion.button>
+                {isLogin && (
+                  <motion.button
+                    onClick={() => {
+                      setIsForgotPassword(true);
+                      setIsLogin(false);
+                      setErrorMessage("");
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium"
+                    whileHover={{ scale: 1.05 }}
+                  >
+                    Forgot your password?
+                  </motion.button>
                 )}
-              </motion.button>
+              </>
+            )}
+            {resetEmailSent && (
+              <motion.div
+                className="bg-green-50 border border-green-200 rounded-xl p-4"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+              >
+                <p className="text-green-700 text-sm font-medium mb-2">
+                  ✓ Password reset email sent!
+                </p>
+                <p className="text-green-600 text-sm mb-3">
+                  Check your email for a link to reset your password.
+                </p>
+                <button
+                  onClick={() => navigate('/login')}
+                  className="text-sm text-blue-600 hover:text-blue-700 underline font-medium"
+                >
+                  Back to Sign In
+                </button>
+              </motion.div>
             )}
           </div>
         </motion.div>
