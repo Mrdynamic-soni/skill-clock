@@ -63,7 +63,7 @@ class SupabaseService {
 
   async resetPassword(email: string) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
+      redirectTo: 'https://skill-clock.vercel.app/reset-password'
     });
     if (error) throw error;
     return { message: 'Password reset email sent' };

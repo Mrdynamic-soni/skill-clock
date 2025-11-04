@@ -34,7 +34,7 @@ export const AuthForm = ({ forgotPassword = false }: { forgotPassword?: boolean 
     try {
       if (isForgotPassword) {
         const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-          redirectTo: `${window.location.origin}/reset-password`
+          redirectTo: 'https://skill-clock.vercel.app/reset-password'
         });
         if (error) throw error;
         setResetEmailSent(true);
@@ -334,7 +334,7 @@ export const AuthForm = ({ forgotPassword = false }: { forgotPassword?: boolean 
           </form>
 
           {/* Google Sign-in */}
-          {true && (
+          {!isForgotPassword && (
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
