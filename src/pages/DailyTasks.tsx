@@ -191,8 +191,8 @@ export const DailyTasks = () => {
   const consistencyStats = getConsistencyStats();
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <CheckSquare className="text-blue-600" />
           Daily Tasks
@@ -226,49 +226,31 @@ export const DailyTasks = () => {
       {viewMode === "today" ? (
         <>
           {/* Today's Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Completed</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {todayStats.completed}/{todayStats.total}
-                  </p>
-                </div>
-                <CheckSquare className="text-green-500" size={24} />
+          <div className="bg-white rounded-lg shadow p-3">
+            <div className="flex justify-between items-center text-center">
+              <div className="flex-1">
+                <p className="text-xs text-gray-600">Completed</p>
+                <p className="text-sm font-bold text-green-600">
+                  {todayStats.completed}/{todayStats.total}
+                </p>
               </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Progress</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {todayStats.percentage.toFixed(0)}%
-                  </p>
-                </div>
-                <TrendingUp className="text-blue-500" size={24} />
+              <div className="flex-1">
+                <p className="text-xs text-gray-600">Progress</p>
+                <p className="text-sm font-bold text-blue-600">
+                  {todayStats.percentage.toFixed(0)}%
+                </p>
               </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">7-Day Avg</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {consistencyStats.avg7Days.toFixed(0)}%
-                  </p>
-                </div>
-                <BarChart3 className="text-purple-500" size={24} />
+              <div className="flex-1">
+                <p className="text-xs text-gray-600">7-Day</p>
+                <p className="text-sm font-bold text-purple-600">
+                  {consistencyStats.avg7Days.toFixed(0)}%
+                </p>
               </div>
-            </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Streak</p>
-                  <p className="text-2xl font-bold text-orange-600">
-                    {consistencyStats.streak} days
-                  </p>
-                </div>
-                <Calendar className="text-orange-500" size={24} />
+              <div className="flex-1">
+                <p className="text-xs text-gray-600">Streak</p>
+                <p className="text-sm font-bold text-orange-600">
+                  {consistencyStats.streak}d
+                </p>
               </div>
             </div>
           </div>
@@ -505,38 +487,25 @@ export const DailyTasks = () => {
                 return (
                   <>
                     {/* Date Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="bg-white rounded-lg shadow p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm text-gray-600">Completed</p>
-                            <p className="text-2xl font-bold text-green-600">
-                              {dateData.completed}/{dateData.total}
-                            </p>
-                          </div>
-                          <CheckSquare className="text-green-500" size={24} />
+                    <div className="bg-white rounded-lg shadow p-3 mb-4">
+                      <div className="flex justify-between items-center text-center">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-600">Completed</p>
+                          <p className="text-sm font-bold text-green-600">
+                            {dateData.completed}/{dateData.total}
+                          </p>
                         </div>
-                      </div>
-                      <div className="bg-white rounded-lg shadow p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm text-gray-600">Progress</p>
-                            <p className="text-2xl font-bold text-blue-600">
-                              {dateData.percentage.toFixed(0)}%
-                            </p>
-                          </div>
-                          <TrendingUp className="text-blue-500" size={24} />
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-600">Progress</p>
+                          <p className="text-sm font-bold text-blue-600">
+                            {dateData.percentage.toFixed(0)}%
+                          </p>
                         </div>
-                      </div>
-                      <div className="bg-white rounded-lg shadow p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm text-gray-600">Total Tasks</p>
-                            <p className="text-2xl font-bold text-purple-600">
-                              {dateData.total}
-                            </p>
-                          </div>
-                          <BarChart3 className="text-purple-500" size={24} />
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-600">Total</p>
+                          <p className="text-sm font-bold text-purple-600">
+                            {dateData.total}
+                          </p>
                         </div>
                       </div>
                     </div>
