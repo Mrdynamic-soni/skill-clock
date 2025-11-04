@@ -6,8 +6,6 @@ import {
   Plus,
   Trash2,
   Calendar,
-  TrendingUp,
-  BarChart3,
   Edit,
 } from "lucide-react";
 import { useAppStore } from "../store/appStore";
