@@ -9,6 +9,7 @@ import {
   Edit,
 } from "lucide-react";
 import { useAppStore } from "../store/appStore";
+import { getLocalDateString, parseLocalDate } from "../utils/dateUtils";
 
 export const DailyTasks = () => {
   const {
@@ -21,9 +22,9 @@ export const DailyTasks = () => {
   } = useAppStore();
 
   // Filter tasks for today only
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   const todayTasks = allTasks.filter((task) => {
-    const taskDate = new Date(task.createdAt).toISOString().split("T")[0];
+    const taskDate = parseLocalDate(task.createdAt);
     return taskDate === today;
   });
 

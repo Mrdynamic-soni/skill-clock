@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../services/supabaseService';
 import { supabase } from '../lib/supabase';
+import { getLocalDateString, parseLocalDate } from '../utils/dateUtils';
 
 
 export type Priority = 'low' | 'medium' | 'high';
@@ -748,7 +749,7 @@ export const useAppStore = create<AppState>()(
       },
       
       addDailyTask: async (payload) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         const tempTask = {
           ...payload,
           id: uuidv4(),
@@ -759,7 +760,7 @@ export const useAppStore = create<AppState>()(
         
         // Clean up old tasks (keep only today's tasks)
         const todayTasks = get().dailyTasks.filter(task => {
-          const taskDate = new Date(task.createdAt).toISOString().split('T')[0];
+          const taskDate = parseLocalDate(task.createdAt);
           return taskDate === today;
         });
         
@@ -830,7 +831,7 @@ export const useAppStore = create<AppState>()(
       
       saveDailyLog: () => {
         const state = get();
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         const completedTasks = state.dailyTasks.filter(task => task.completed).length;
         const totalTasks = state.dailyTasks.length;
         const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;

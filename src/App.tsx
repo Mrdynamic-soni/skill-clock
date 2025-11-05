@@ -27,6 +27,7 @@ import { ResetPassword } from "./pages/ResetPassword";
 import { useAppStore } from "./store/appStore";
 import { useEffect, useState } from "react";
 import { AuthForm } from "./components/AuthForm";
+import { handleIOSViewport, isAppleDevice } from "./utils/dateUtils";
 
 
 const Layout = () => {
@@ -35,7 +36,7 @@ const Layout = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className={`flex h-screen bg-gray-100 overflow-hidden ${isAppleDevice() ? 'apple-layout' : ''}`}>
       <MobileHeader onMenuClick={() => setMobileMenuOpen(true)} />
       <Sidebar mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
       <motion.div
@@ -86,6 +87,14 @@ const App = () => {
   const { checkAuthStatus } = useAppStore();
 
   useEffect(() => {
+    // Handle iOS-specific setup
+    handleIOSViewport();
+    
+    // Add iOS-specific body class
+    if (isAppleDevice()) {
+      document.body.classList.add('apple-device');
+    }
+    
     checkAuthStatus();
   }, [checkAuthStatus]);
 

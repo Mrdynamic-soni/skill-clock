@@ -34,7 +34,7 @@ export const Goals = () => {
     deadline: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (
       !formData.skillId ||
@@ -45,44 +45,55 @@ export const Goals = () => {
     )
       return;
 
-    if (editingGoal) {
-      updateGoal(editingGoal.id, {
-        skillId: formData.skillId,
-        title: formData.title,
-        description: formData.description,
-        targetHours: parseFloat(formData.targetHours),
-        dailyTarget: parseFloat(formData.dailyTarget),
-        deadline: formData.deadline,
-      });
-    } else {
-      addGoal({
-        skillId: formData.skillId,
-        title: formData.title,
-        description: formData.description,
-        targetHours: parseFloat(formData.targetHours),
-        dailyTarget: parseFloat(formData.dailyTarget),
-        deadline: formData.deadline,
-      });
-    }
+    try {
+      if (editingGoal) {
+        await updateGoal(editingGoal.id, {
+          skillId: formData.skillId,
+          title: formData.title,
+          description: formData.description,
+          targetHours: parseFloat(formData.targetHours),
+          dailyTarget: parseFloat(formData.dailyTarget),
+          deadline: formData.deadline,
+        });
+      } else {
+        await addGoal({
+          skillId: formData.skillId,
+          title: formData.title,
+          description: formData.description,
+          targetHours: parseFloat(formData.targetHours),
+          dailyTarget: parseFloat(formData.dailyTarget),
+          deadline: formData.deadline,
+        });
+      }
 
-    setFormData({
-      skillId: "",
-      title: "",
-      description: "",
-      targetHours: "",
-      dailyTarget: "",
-      deadline: "",
-    });
-    setEditingGoal(null);
-    setShowForm(false);
+      setFormData({
+        skillId: "",
+        title: "",
+        description: "",
+        targetHours: "",
+        dailyTarget: "",
+        deadline: "",
+      });
+      setEditingGoal(null);
+      setShowForm(false);
+    } catch (error) {
+      console.error('Failed to save goal:', error);
+      // Goal creation failed, form stays open so user can retry
+    }
   };
 
-  const handleAddSkill = (e: React.FormEvent) => {
+  const handleAddSkill = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSkillName.trim()) return;
-    addSkill(newSkillName.trim());
-    setNewSkillName("");
-    setShowSkillForm(false);
+    
+    try {
+      await addSkill(newSkillName.trim());
+      setNewSkillName("");
+      setShowSkillForm(false);
+    } catch (error) {
+      console.error('Failed to add skill:', error);
+      // Skill creation failed, form stays open so user can retry
+    }
   };
 
   const handleEditGoal = (goal: any) => {
