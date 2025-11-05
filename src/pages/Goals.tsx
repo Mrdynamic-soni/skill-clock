@@ -126,6 +126,17 @@ export const Goals = () => {
     return "behind";
   };
 
+  const getProgressForGoal = (goal: any) => {
+    const skillEntries = entries.filter(
+      (entry) => entry.skillId === goal.skillId
+    );
+    const totalHours = skillEntries.reduce(
+      (sum, entry) => sum + entry.hours,
+      0
+    );
+    return Math.min((totalHours / goal.targetHours) * 100, 100);
+  };
+
   const getGoalStatus = (goal: any) => {
     if (goal.completed) return "completed";
     const progress = getProgressForGoal(goal);
@@ -152,19 +163,9 @@ export const Goals = () => {
 
   const filteredGoals = goals.filter((goal) => {
     if (filter === "all") return true;
-    return getGoalStatus(goal) === filter;
+    const status = getGoalStatus(goal);
+    return status === filter;
   });
-
-  const getProgressForGoal = (goal: any) => {
-    const skillEntries = entries.filter(
-      (entry) => entry.skillId === goal.skillId
-    );
-    const totalHours = skillEntries.reduce(
-      (sum, entry) => sum + entry.hours,
-      0
-    );
-    return Math.min((totalHours / goal.targetHours) * 100, 100);
-  };
 
 
 
@@ -427,8 +428,13 @@ export const Goals = () => {
             <p>
               {filter === "all"
                 ? "No goals yet. Create your first goal to start tracking progress!"
-                : `No ${filter} goals found.`}
+                : `No ${filter.replace('-', ' ')} goals found.`}
             </p>
+            {filter !== "all" && goals.length > 0 && (
+              <p className="text-sm mt-2">
+                Try selecting "All Goals" to see all your goals.
+              </p>
+            )}
           </div>
         ) : (
           filteredGoals.map((goal) => {
