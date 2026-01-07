@@ -434,7 +434,6 @@ export const Analytics = () => {
                 <Tooltip
                   formatter={(value, name) => {
                     if (name === 'progress') {
-                      const data = goals.find(g => g.title === (value as any));
                       return [`${value}%`, 'Progress'];
                     }
                     return [value, name];

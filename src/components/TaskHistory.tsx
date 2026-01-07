@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CheckSquare, Square, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckSquare, Square, Calendar, ChevronRight } from "lucide-react";
 import { useAppStore } from "../store/appStore";
 import { getLocalDateString } from "../utils/dateUtils";
 import { apiService } from "../services/supabaseService";
