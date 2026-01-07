@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Target,
@@ -9,8 +9,13 @@ import {
   Edit,
   Star,
   Filter,
+  RotateCcw,
 } from "lucide-react";
 import { useAppStore } from "../store/appStore";
+import { SecondChanceTile } from "../components/SecondChanceTile";
+import { ExpiredGoalTile } from "../components/ExpiredGoalTile";
+import { ContinueGoalModal } from "../components/ContinueGoalModal";
+import { GOAL_MESSAGES, GOAL_PROGRESS_THRESHOLDS } from "../constants/goalMessages";
 
 export const Goals = () => {
   const { skills, goals, entries, addGoal, updateGoal, deleteGoal, addSkill } =
@@ -21,10 +26,15 @@ export const Goals = () => {
   const [newSkillName, setNewSkillName] = useState("");
   const [filter, setFilter] = useState<
     "all" | "pending" | "in-progress" | "completed"
-  >("all");
+  >("in-progress");
   const [completionNote, setCompletionNote] = useState("");
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completingGoal, setCompletingGoal] = useState<any>(null);
+  const [showContinueModal, setShowContinueModal] = useState(false);
+  const [continuingGoal, setContinuingGoal] = useState<any>(null);
+  const [newDeadline, setNewDeadline] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingGoal, setDeletingGoal] = useState<any>(null);
   const [formData, setFormData] = useState({
     skillId: "",
     title: "",
@@ -120,9 +130,9 @@ export const Goals = () => {
     const todayHours = getTodayHours(goal.skillId);
     const dailyTarget = goal.dailyTarget || 0;
 
-    if (todayHours >= dailyTarget * 1.2) return "excellent";
+    if (todayHours >= dailyTarget * GOAL_PROGRESS_THRESHOLDS.DAILY_EXCELLENT) return "excellent";
     if (todayHours >= dailyTarget) return "completed";
-    if (todayHours >= dailyTarget * 0.7) return "close";
+    if (todayHours >= dailyTarget * GOAL_PROGRESS_THRESHOLDS.DAILY_CLOSE) return "close";
     return "behind";
   };
 
@@ -138,36 +148,68 @@ export const Goals = () => {
   };
 
   const getGoalStatus = (goal: any) => {
-    if (goal.completed) return "completed";
-    
     const today = new Date().toISOString().split("T")[0];
     const deadline = new Date(goal.deadline).toISOString().split("T")[0];
     
-    if (deadline <= today) {
-      return "completed";
+    // If deadline has passed and goal is not manually completed, show in pending
+    if (deadline <= today && !goal.completed) {
+      return "pending";
     }
     
+    // If goal is completed, show in completed
+    if (goal.completed) return "completed";
+    
+    // For active goals, check progress
     const progress = getProgressForGoal(goal);
     if (progress > 0) return "in-progress";
     return "pending";
   };
 
-  // Auto-complete expired goals
-  useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
-    const expiredGoals = goals.filter(goal => 
-      !goal.completed && new Date(goal.deadline).toISOString().split("T")[0] <= today
-    );
-    
-    expiredGoals.forEach(goal => {
-      updateGoal(goal.id, { 
-        completed: true, 
-        completionNote: "Goal deadline reached" 
+  // Remove auto-deletion of expired goals
+  // Goals with passed deadlines will show in pending filter
+
+  const handleContinueGoal = (goal: any) => {
+    setContinuingGoal(goal);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setNewDeadline(tomorrow.toISOString().split('T')[0]);
+    setShowContinueModal(true);
+  };
+
+  const handleDeleteGoal = (goal: any) => {
+    setDeletingGoal(goal);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteGoal = () => {
+    if (deletingGoal) {
+      deleteGoal(deletingGoal.id);
+    }
+    setShowDeleteModal(false);
+    setDeletingGoal(null);
+  };
+
+  const submitContinueGoal = () => {
+    if (continuingGoal && newDeadline) {
+      updateGoal(continuingGoal.id, {
+        deadline: newDeadline,
+        secondChance: true
       });
-    });
-  }, [goals, updateGoal]);
+    }
+    setShowContinueModal(false);
+    setContinuingGoal(null);
+    setNewDeadline("");
+  };
 
   const handleCompleteGoal = (goal: any) => {
+    const progress = getProgressForGoal(goal);
+    
+    if (progress < 100) {
+      const remainingHours = (goal.targetHours - entries.filter(e => e.skillId === goal.skillId).reduce((sum, e) => sum + e.hours, 0)).toFixed(1);
+      alert(GOAL_MESSAGES.INCOMPLETE_GOAL(parseFloat(remainingHours)));
+      return;
+    }
+    
     setCompletingGoal(goal);
     setShowCompletionModal(true);
   };
@@ -404,6 +446,51 @@ export const Goals = () => {
         </motion.div>
       )}
 
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <motion.div
+            className="bg-white rounded-lg p-6 w-full max-w-md mx-4"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <h3 className="text-lg font-semibold mb-4">🗑️ Delete Goal</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete "{deletingGoal?.title}"? This action cannot be undone.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletingGoal(null);
+                }}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteGoal}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Delete Goal
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      <ContinueGoalModal
+        show={showContinueModal}
+        goal={continuingGoal}
+        newDeadline={newDeadline}
+        onDeadlineChange={setNewDeadline}
+        onSubmit={submitContinueGoal}
+        onCancel={() => {
+          setShowContinueModal(false);
+          setContinuingGoal(null);
+          setNewDeadline("");
+        }}
+      />
+
       {showCompletionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <motion.div
@@ -411,9 +498,15 @@ export const Goals = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
           >
-            <h3 className="text-lg font-semibold mb-4">🎉 Complete Goal</h3>
+            <h3 className="text-lg font-semibold mb-4">{GOAL_MESSAGES.COMPLETION.title}</h3>
             <p className="text-gray-600 mb-4">
-              Add a note about your achievement (optional):
+              {completingGoal && GOAL_MESSAGES.COMPLETION.message(
+                completingGoal.title,
+                Number(entries.filter(e => e.skillId === completingGoal.skillId).reduce((sum, e) => sum + e.hours, 0).toFixed(1))
+              )}
+            </p>
+            <p className="text-gray-600 mb-4">
+              {GOAL_MESSAGES.COMPLETION.notePrompt}
             </p>
             <textarea
               value={completionNote}
@@ -522,6 +615,27 @@ export const Goals = () => {
                       </div>
                     </div>
                     <div className="flex gap-1">
+                      {(() => {
+                        const today = new Date().toISOString().split("T")[0];
+                        const deadline = new Date(goal.deadline).toISOString().split("T")[0];
+                        const isExpired = deadline <= today && !goal.completed;
+                        
+                        if (isExpired) {
+                          return (
+                            <motion.button
+                              onClick={() => handleContinueGoal(goal)}
+                              className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 flex items-center gap-2 text-sm font-medium"
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              <RotateCcw size={16} />
+                              Continue Goal
+                            </motion.button>
+                          );
+                        }
+                        return null;
+                      })()}
+                      
                       <motion.button
                         onClick={() =>
                           goal.completed
@@ -547,7 +661,7 @@ export const Goals = () => {
                         <Edit size={14} />
                       </motion.button>
                       <motion.button
-                        onClick={() => deleteGoal(goal.id)}
+                        onClick={() => handleDeleteGoal(goal)}
                         className="p-1.5 rounded-full bg-red-100 text-red-600 hover:bg-red-200"
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
@@ -556,6 +670,11 @@ export const Goals = () => {
                       </motion.button>
                     </div>
                   </div>
+                  
+                  <SecondChanceTile show={!!goal.secondChance} />
+                  
+                  <ExpiredGoalTile goal={goal} progress={progress} />
+                  
                   <div className="bg-white/50 rounded-lg p-2">
 
 
@@ -604,13 +723,7 @@ export const Goals = () => {
                                 ? "bg-amber-100 text-amber-700"
                                 : "bg-red-100 text-red-700"
                             }`}>
-                              {dailyStatus === "excellent"
-                                ? "🌟 Exceeded!"
-                                : dailyStatus === "completed"
-                                ? "✅ Complete"
-                                : dailyStatus === "close"
-                                ? "⚡ Almost"
-                                : "🎯 Keep going"}
+                              {GOAL_MESSAGES.DAILY_STATUS[dailyStatus as keyof typeof GOAL_MESSAGES.DAILY_STATUS]}
                             </span>
                           </div>
                           <span className="text-xs font-bold text-gray-700">

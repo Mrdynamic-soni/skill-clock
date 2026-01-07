@@ -239,9 +239,20 @@ class SupabaseService {
   }
 
   async updateGoal(id: string, goalData: any) {
+    const updateData: any = {};
+    
+    if (goalData.title !== undefined) updateData.title = goalData.title;
+    if (goalData.description !== undefined) updateData.description = goalData.description;
+    if (goalData.targetHours !== undefined) updateData.target_hours = goalData.targetHours;
+    if (goalData.dailyTarget !== undefined) updateData.daily_target = goalData.dailyTarget;
+    if (goalData.deadline !== undefined) updateData.deadline = goalData.deadline;
+    if (goalData.completed !== undefined) updateData.completed = goalData.completed;
+    if (goalData.completionNote !== undefined) updateData.completion_note = goalData.completionNote;
+    if (goalData.secondChance !== undefined) updateData.second_chance = goalData.secondChance;
+    
     const { data, error } = await supabase
       .from('goals')
-      .update(goalData)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
@@ -357,6 +368,77 @@ class SupabaseService {
       .eq('id', id);
     if (error) throw error;
     return { message: 'Task deleted successfully' };
+  }
+
+  // User Preferences
+  async getUserPreferences() {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return { preferences: data };
+  }
+
+  async updateUserPreferences(preferences: any) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .upsert({ user_id: user?.id, ...preferences })
+      .select()
+      .single();
+    if (error) throw error;
+    return { preferences: data };
+  }
+
+  // User Profile
+  async getUserProfile() {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return { profile: data };
+  }
+
+  async updateUserProfile(profile: any) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .upsert({ user_id: user?.id, ...profile })
+      .select()
+      .single();
+    if (error) throw error;
+    return { profile: data };
+  }
+
+  // Active Timer
+  async getActiveTimer() {
+    const { data, error } = await supabase
+      .from('active_timers')
+      .select('*')
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return { timer: data };
+  }
+
+  async saveActiveTimer(timer: any) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase
+      .from('active_timers')
+      .upsert({ user_id: user?.id, ...timer })
+      .select()
+      .single();
+    if (error) throw error;
+    return { timer: data };
+  }
+
+  async deleteActiveTimer() {
+    const { error } = await supabase
+      .from('active_timers')
+      .delete()
+      .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+    if (error) throw error;
   }
 }
 

@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../services/supabaseService';
 import { supabase } from '../lib/supabase';
@@ -56,6 +55,7 @@ export interface Goal {
   completed: boolean;
   completionNote?: string;
   createdAt: string;
+  secondChance?: boolean;
 }
 
 export interface DailyTask {
@@ -148,7 +148,6 @@ const initialProfile: Profile = {
 };
 
 export const useAppStore = create<AppState>()(
-  persist(
     (set, get) => ({
       isAuthenticated: false,
       user: null,
@@ -252,12 +251,15 @@ export const useAppStore = create<AppState>()(
 
       syncFromServer: async () => {
         try {
-          const [skillsData, entriesData, sessionsData, goalsData, tasksData] = await Promise.all([
+          const [skillsData, entriesData, sessionsData, goalsData, tasksData, preferencesData, profileData, timerData] = await Promise.all([
             apiService.getSkills(),
             apiService.getEntries(),
             apiService.getSessions(),
             apiService.getGoals(),
             apiService.getTasks(),
+            apiService.getUserPreferences(),
+            apiService.getUserProfile(),
+            apiService.getActiveTimer(),
           ]);
           
           // Map database sessions to frontend format
@@ -292,7 +294,8 @@ export const useAppStore = create<AppState>()(
             deadline: goal.deadline,
             completed: goal.completed,
             completionNote: goal.completion_note,
-            createdAt: goal.created_at
+            createdAt: goal.created_at,
+            secondChance: goal.second_chance
           }));
           
           // Map database tasks to frontend format
@@ -305,12 +308,31 @@ export const useAppStore = create<AppState>()(
             completedAt: task.completed_at
           }));
           
+          // Map active timer
+          const mappedTimer = timerData.timer ? {
+            skillId: timerData.timer.skill_id,
+            startTime: new Date(timerData.timer.start_time).getTime(),
+            elapsedTime: timerData.timer.elapsed_time,
+            isRunning: timerData.timer.is_running,
+            intervals: timerData.timer.intervals || []
+          } : null;
+          
           set({
             skills: skillsData.skills || [],
             entries: mappedEntries,
             sessions: mappedSessions,
             goals: mappedGoals,
             dailyTasks: mappedTasks,
+            sidebarCollapsed: preferencesData.preferences?.sidebar_collapsed || false,
+            profile: profileData.profile ? {
+              name: profileData.profile.name || '',
+              email: get().user?.email || '',
+              profession: profileData.profile.profession || '',
+              company: profileData.profile.company || '',
+              location: profileData.profile.location || '',
+              bio: profileData.profile.bio || ''
+            } : get().profile,
+            activeTimer: mappedTimer
           });
         } catch (error) {
           // Sync error handled silently
@@ -484,14 +506,26 @@ export const useAppStore = create<AppState>()(
           profile: { ...state.profile, ...partial }
         }));
         
-        // Note: Supabase auth.users table updates would go here if needed
-        // For now, we'll just keep profile data in local state
+        try {
+          await apiService.updateUserProfile(partial);
+        } catch (error) {
+          // Revert on error
+          set(state => ({
+            profile: { ...state.profile, ...Object.keys(partial).reduce((acc, key) => ({ ...acc, [key]: state.profile[key as keyof Profile] }), {}) }
+          }));
+        }
       },
 
-      toggleSidebar: () => {
-        set(state => ({
-          sidebarCollapsed: !state.sidebarCollapsed
-        }));
+      toggleSidebar: async () => {
+        const newCollapsed = !get().sidebarCollapsed;
+        set({ sidebarCollapsed: newCollapsed });
+        
+        try {
+          await apiService.updateUserPreferences({ sidebar_collapsed: newCollapsed });
+        } catch (error) {
+          // Revert on error
+          set({ sidebarCollapsed: !newCollapsed });
+        }
       },
 
       clearAll: () => {
@@ -527,17 +561,29 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      startTimer: (skillId: string) => {
+      startTimer: async (skillId: string) => {
         const now = Date.now();
-        set({
-          activeTimer: {
-            skillId,
-            startTime: now,
-            elapsedTime: 0,
-            isRunning: true,
+        const timer = {
+          skillId,
+          startTime: now,
+          elapsedTime: 0,
+          isRunning: true,
+          intervals: [{ start: now }]
+        };
+        
+        set({ activeTimer: timer });
+        
+        try {
+          await apiService.saveActiveTimer({
+            skill_id: skillId,
+            start_time: new Date(now).toISOString(),
+            elapsed_time: 0,
+            is_running: true,
             intervals: [{ start: now }]
-          }
-        });
+          });
+        } catch (error) {
+          // Keep local timer even if sync fails
+        }
       },
 
       stopTimer: () => {
@@ -624,7 +670,7 @@ export const useAppStore = create<AppState>()(
         }));
         
         try {
-          // Save to Supabase
+          // Save to Supabase and delete active timer
           const [sessionResult, entryResult] = await Promise.all([
             apiService.createSession({
               skill_id: state.activeTimer.skillId,
@@ -640,7 +686,8 @@ export const useAppStore = create<AppState>()(
               date,
               hours: totalHours,
               notes: notes || 'Timer session'
-            })
+            }),
+            apiService.deleteActiveTimer()
           ]);
           
           // Update with server IDs
@@ -724,11 +771,12 @@ export const useAppStore = create<AppState>()(
           await apiService.updateGoal(id, {
             title: updates.title,
             description: updates.description,
-            target_hours: updates.targetHours,
-            daily_target: updates.dailyTarget,
+            targetHours: updates.targetHours,
+            dailyTarget: updates.dailyTarget,
             deadline: updates.deadline,
             completed: updates.completed,
-            completion_note: updates.completionNote
+            completionNote: updates.completionNote,
+            secondChance: updates.secondChance
           });
         } catch (error) {
           set({ goals: oldGoals });
@@ -858,25 +906,7 @@ export const useAppStore = create<AppState>()(
           }));
         }
       },
-    }),
-    {
-      name: 'sht.store.v1',
-      version: 1,
-      partialize: (state) => ({
-        isAuthenticated: state.isAuthenticated,
-        user: state.user,
-        profile: state.profile,
-        sidebarCollapsed: state.sidebarCollapsed,
-        skills: state.skills,
-        entries: state.entries,
-        sessions: state.sessions,
-        goals: state.goals,
-        dailyTasks: state.dailyTasks,
-        dailyTaskLogs: state.dailyTaskLogs,
-        activeTimer: state.activeTimer,
-      }),
-    }
-  )
+    })
 );
 
 // Selectors
