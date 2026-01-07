@@ -5,11 +5,11 @@ import {
   Square,
   Plus,
   Trash2,
-  Calendar,
   Edit,
 } from "lucide-react";
 import { useAppStore } from "../store/appStore";
 import { getLocalDateString, parseLocalDate } from "../utils/dateUtils";
+import { TaskHistory } from "../components/TaskHistory";
 
 export const DailyTasks = () => {
   const {
@@ -51,14 +51,13 @@ export const DailyTasks = () => {
   });
   const [showAddForm, setShowAddForm] = useState(false);
   const [viewMode, setViewMode] = useState<"today" | "history">("today");
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [newTask, setNewTask] = useState({ title: "", description: "" });
+  const [newTask, setNewTask] = useState({ title: "" });
   const [editingTask, setEditingTask] = useState<string | null>(null);
-  const [editTask, setEditTask] = useState({ title: "", description: "" });
+  const [editTask, setEditTask] = useState({ title: "" });
 
   useEffect(() => {
     saveDailyLog();
-  }, [saveDailyLog]);
+  }, [saveDailyLog]); // Remove dailyTasks dependency to prevent infinite loop
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,16 +65,15 @@ export const DailyTasks = () => {
 
     addDailyTask({
       title: newTask.title.trim(),
-      description: newTask.description.trim() || undefined,
     });
 
-    setNewTask({ title: "", description: "" });
-    setShowAddForm(false);
+    setNewTask({ title: "" });
+    // Keep form open and focus on input
   };
 
   const handleEditTask = (task: any) => {
     setEditingTask(task.id);
-    setEditTask({ title: task.title, description: task.description || "" });
+    setEditTask({ title: task.title });
   };
 
   const handleSaveEdit = () => {
@@ -87,7 +85,6 @@ export const DailyTasks = () => {
         ? {
             ...task,
             title: editTask.title.trim(),
-            description: editTask.description.trim() || undefined,
           }
         : task
     );
@@ -95,12 +92,12 @@ export const DailyTasks = () => {
     useAppStore.setState(() => ({ dailyTasks: updatedTasks }));
 
     setEditingTask(null);
-    setEditTask({ title: "", description: "" });
+    setEditTask({ title: "" });
   };
 
   const handleCancelEdit = () => {
     setEditingTask(null);
-    setEditTask({ title: "", description: "" });
+    setEditTask({ title: "" });
   };
 
   const getTodayStats = () => {
@@ -143,47 +140,6 @@ export const DailyTasks = () => {
       }
     }
     return streak;
-  };
-
-  const getHistoryData = () => {
-    return [...dailyTaskLogs]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 30);
-  };
-
-  const getSelectedDateData = (date: string) => {
-    const log = dailyTaskLogs.find((log) => log.date === date);
-    if (!log) return null;
-
-    const completed = log.tasks.filter((task) => task.completed).length;
-    const total = log.tasks.length;
-    const percentage = total > 0 ? (completed / total) * 100 : 0;
-
-    // Sort tasks same way as today: unchecked first, checked last
-    const sortedTasks = [...log.tasks].sort((a, b) => {
-      if (a.completed && !b.completed) return 1;
-      if (!a.completed && b.completed) return -1;
-
-      if (!a.completed && !b.completed) {
-        return (
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
-      }
-
-      if (a.completed && b.completed) {
-        const aCompletedTime = a.completedAt
-          ? new Date(a.completedAt).getTime()
-          : 0;
-        const bCompletedTime = b.completedAt
-          ? new Date(b.completedAt).getTime()
-          : 0;
-        return aCompletedTime - bCompletedTime;
-      }
-
-      return 0;
-    });
-
-    return { ...log, tasks: sortedTasks, completed, total, percentage };
   };
 
   const todayStats = getTodayStats();
@@ -269,26 +225,17 @@ export const DailyTasks = () => {
                   <input
                     type="text"
                     value={newTask.title}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, title: e.target.value })
-                    }
+                    onChange={(e) => setNewTask({ title: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddTask(e);
+                      }
+                    }}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter task title..."
+                    autoFocus
                     required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Description (Optional)
-                  </label>
-                  <textarea
-                    value={newTask.description}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, description: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    rows={2}
-                    placeholder="Add details about this task..."
                   />
                 </div>
                 <div className="flex gap-2">
@@ -300,7 +247,10 @@ export const DailyTasks = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowAddForm(false)}
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setNewTask({ title: "" });
+                    }}
                     className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
                   >
                     Cancel
@@ -365,24 +315,11 @@ export const DailyTasks = () => {
                                 value={editTask.title}
                                 onChange={(e) =>
                                   setEditTask({
-                                    ...editTask,
                                     title: e.target.value,
                                   })
                                 }
                                 className="w-full px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-blue-500"
                                 autoFocus
-                              />
-                              <textarea
-                                value={editTask.description}
-                                onChange={(e) =>
-                                  setEditTask({
-                                    ...editTask,
-                                    description: e.target.value,
-                                  })
-                                }
-                                className="w-full px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-blue-500 resize-none"
-                                rows={2}
-                                placeholder="Description (optional)"
                               />
                               <div className="flex gap-2">
                                 <button
@@ -457,202 +394,7 @@ export const DailyTasks = () => {
           </div>
         </>
       ) : (
-        <>
-          {/* History View */}
-          {selectedDate ? (
-            <>
-              {/* Selected Date Detail View */}
-              <div className="flex items-center gap-4 mb-4">
-                <button
-                  onClick={() => setSelectedDate(null)}
-                  className="text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  ← Back to History
-                </button>
-                <h2 className="text-xl font-semibold">
-                  {new Date(selectedDate).toLocaleDateString("en-US", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </h2>
-              </div>
-
-              {(() => {
-                const dateData = getSelectedDateData(selectedDate);
-                if (!dateData) return <div>No data for this date</div>;
-
-                return (
-                  <>
-                    {/* Date Stats */}
-                    <div className="bg-white rounded-lg shadow p-3 mb-4">
-                      <div className="flex justify-between items-center text-center">
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-600">Completed</p>
-                          <p className="text-sm font-bold text-green-600">
-                            {dateData.completed}/{dateData.total}
-                          </p>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-600">Progress</p>
-                          <p className="text-sm font-bold text-blue-600">
-                            {dateData.percentage.toFixed(0)}%
-                          </p>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-600">Total</p>
-                          <p className="text-sm font-bold text-purple-600">
-                            {dateData.total}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Date Tasks */}
-                    <div className="bg-white rounded-lg shadow">
-                      <div className="p-4 border-b">
-                        <h3 className="text-lg font-semibold">
-                          Tasks for this day
-                        </h3>
-                      </div>
-                      <div className="p-4">
-                        {dateData.tasks.length === 0 ? (
-                          <div className="text-center py-8 text-gray-500">
-                            <CheckSquare
-                              size={48}
-                              className="mx-auto mb-4 opacity-50"
-                            />
-                            <p>No tasks recorded for this day</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {dateData.tasks.map((task: any) => (
-                              <div
-                                key={task.id}
-                                className={`flex items-start gap-3 p-3 rounded-lg border ${
-                                  task.completed
-                                    ? "bg-green-50 border-green-200"
-                                    : "bg-gray-50 border-gray-200"
-                                }`}
-                              >
-                                <div
-                                  className={`mt-0.5 ${
-                                    task.completed
-                                      ? "text-green-600"
-                                      : "text-gray-400"
-                                  }`}
-                                >
-                                  {task.completed ? (
-                                    <CheckSquare size={20} />
-                                  ) : (
-                                    <Square size={20} />
-                                  )}
-                                </div>
-                                <div className="flex-1">
-                                  <h4
-                                    className={`font-medium ${
-                                      task.completed
-                                        ? "line-through text-gray-500"
-                                        : "text-gray-900"
-                                    }`}
-                                  >
-                                    {task.title}
-                                  </h4>
-                                  {task.description && (
-                                    <p
-                                      className={`text-sm mt-1 ${
-                                        task.completed
-                                          ? "line-through text-gray-400"
-                                          : "text-gray-600"
-                                      }`}
-                                    >
-                                      {task.description}
-                                    </p>
-                                  )}
-                                  <div className="flex gap-4 mt-2 text-xs text-gray-500">
-                                    <span>
-                                      Created:{" "}
-                                      {new Date(
-                                        task.createdAt
-                                      ).toLocaleTimeString()}
-                                    </span>
-                                    {task.completedAt && (
-                                      <span className="text-green-600">
-                                        Completed:{" "}
-                                        {new Date(
-                                          task.completedAt
-                                        ).toLocaleTimeString()}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-            </>
-          ) : (
-            <>
-              {/* History List View */}
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold mb-4">Task History</h2>
-                <div className="space-y-3">
-                  {getHistoryData().map((item: any) => (
-                    <div
-                      key={item.date}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                      onClick={() => setSelectedDate(item.date)}
-                    >
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {new Date(item.date).toLocaleDateString("en-US", {
-                            weekday: "long",
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {item.tasks.filter((t: any) => t.completed).length}/
-                          {item.tasks.length} tasks completed
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="w-24 bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full ${
-                              item.completionRate >= 80
-                                ? "bg-green-500"
-                                : item.completionRate >= 60
-                                ? "bg-yellow-500"
-                                : "bg-red-500"
-                            }`}
-                            style={{ width: `${item.completionRate}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium w-10 text-right">
-                          {item.completionRate.toFixed(0)}%
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                  {getHistoryData().length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <Calendar size={48} className="mx-auto mb-4 opacity-50" />
-                      <p>No task history available yet</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </>
+        <TaskHistory />
       )}
     </div>
   );

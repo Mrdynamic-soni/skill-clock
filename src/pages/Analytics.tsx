@@ -31,7 +31,7 @@ const COLORS = [
 type DateRange = "daily" | "weekly" | "monthly" | "custom";
 
 export const Analytics = () => {
-  const { skills, entries } = useAppStore();
+  const { skills, entries, goals } = useAppStore();
   const [dateRange, setDateRange] = useState<DateRange>("daily");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
@@ -190,7 +190,7 @@ export const Analytics = () => {
       >
         <h2 className="text-lg font-semibold mb-6">Data Summary</h2>
 
-        <div className="grid grid-cols-3 gap-2 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
           <motion.div
             className="text-center p-4 bg-blue-50 rounded-lg"
             initial={{ opacity: 0, scale: 0.9 }}
@@ -227,6 +227,18 @@ export const Analytics = () => {
                 .toFixed(1)}
             </div>
             <div className="text-sm text-purple-800">Period Hours</div>
+          </motion.div>
+
+          <motion.div
+            className="text-center p-4 bg-orange-50 rounded-lg"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.5, duration: 0.3 }}
+          >
+            <div className="text-2xl font-bold text-orange-600">
+              {goals.length}
+            </div>
+            <div className="text-sm text-orange-800">Total Goals</div>
           </motion.div>
         </div>
       </motion.div>
@@ -367,12 +379,94 @@ export const Analytics = () => {
         </motion.div>
       </div>
 
+      {/* Goals Progress Chart */}
+      <motion.div
+        className="bg-white rounded-lg shadow p-4 md:p-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.3 }}
+      >
+        <h2 className="text-lg font-semibold mb-4">Goals Progress</h2>
+        {goals.length === 0 ? (
+          <motion.div
+            className="h-48 md:h-64 flex items-center justify-center text-gray-500"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+          >
+            No goals created yet. Create goals to track progress.
+          </motion.div>
+        ) : (
+          <motion.div
+            className="w-full h-64 md:h-80"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4, duration: 0.4 }}
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={goals.map(goal => {
+                  const skillName = skills.find(s => s.id === goal.skillId)?.name || 'Unknown';
+                  const currentHours = entries
+                    .filter(e => e.skillId === goal.skillId && e.date >= goal.createdAt.split('T')[0])
+                    .reduce((sum, e) => sum + e.hours, 0);
+                  const progress = Math.min((currentHours / goal.targetHours) * 100, 100);
+                  return {
+                    name: goal.title,
+                    skill: skillName,
+                    progress: Math.round(progress),
+                    current: currentHours,
+                    target: goal.targetHours,
+                    completed: goal.completed
+                  };
+                })}
+                margin={{ top: 20, right: 10, left: 10, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="name"
+                  fontSize={12}
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis fontSize={12} domain={[0, 100]} />
+                <Tooltip
+                  formatter={(value, name) => {
+                    if (name === 'progress') {
+                      const data = goals.find(g => g.title === (value as any));
+                      return [`${value}%`, 'Progress'];
+                    }
+                    return [value, name];
+                  }}
+                  labelFormatter={(label) => {
+                    const goal = goals.find(g => g.title === label);
+                    if (goal) {
+                      const currentHours = entries
+                        .filter(e => e.skillId === goal.skillId && e.date >= goal.createdAt.split('T')[0])
+                        .reduce((sum, e) => sum + e.hours, 0);
+                      return `${label}: ${currentHours}h / ${goal.targetHours}h`;
+                    }
+                    return label;
+                  }}
+                />
+                <Bar dataKey="progress" name="Progress (%)">
+                  {goals.map((goal, index) => (
+                    <Cell key={`cell-${index}`} fill={goal.completed ? '#10B981' : '#3B82F6'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </motion.div>
+        )}
+      </motion.div>
+
       {/* Daily Hours - Line Chart */}
       <motion.div
         className="bg-white rounded-lg shadow p-4 md:p-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.2 }}
+        transition={{ duration: 0.3, delay: 0.4 }}
       >
         <h2 className="text-lg font-semibold mb-4">
           Daily Hours ({dateRange === 'daily' ? 'Today' : dateRange === 'weekly' ? 'Last 7 Days' : dateRange === 'monthly' ? 'Last 30 Days' : 'Custom Period'})
@@ -382,16 +476,16 @@ export const Analytics = () => {
             className="h-48 md:h-64 flex items-center justify-center text-gray-500"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.5 }}
           >
-            No data available for the last 30 days.
+            No data available for the selected period.
           </motion.div>
         ) : (
           <motion.div
             className="w-full h-64 md:h-80"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.4 }}
+            transition={{ delay: 0.5, duration: 0.4 }}
           >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart

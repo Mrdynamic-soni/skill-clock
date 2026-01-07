@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Target,
@@ -139,10 +139,33 @@ export const Goals = () => {
 
   const getGoalStatus = (goal: any) => {
     if (goal.completed) return "completed";
+    
+    const today = new Date().toISOString().split("T")[0];
+    const deadline = new Date(goal.deadline).toISOString().split("T")[0];
+    
+    if (deadline <= today) {
+      return "completed";
+    }
+    
     const progress = getProgressForGoal(goal);
     if (progress > 0) return "in-progress";
     return "pending";
   };
+
+  // Auto-complete expired goals
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const expiredGoals = goals.filter(goal => 
+      !goal.completed && new Date(goal.deadline).toISOString().split("T")[0] <= today
+    );
+    
+    expiredGoals.forEach(goal => {
+      updateGoal(goal.id, { 
+        completed: true, 
+        completionNote: "Goal deadline reached" 
+      });
+    });
+  }, [goals, updateGoal]);
 
   const handleCompleteGoal = (goal: any) => {
     setCompletingGoal(goal);

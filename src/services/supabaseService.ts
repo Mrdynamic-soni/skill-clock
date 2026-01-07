@@ -276,6 +276,58 @@ class SupabaseService {
     return { tasks: data };
   }
 
+  async getTaskLogs(page = 0, limit = 10) {
+    // Get distinct dates first, then fetch tasks for those dates
+    const { data: dates, error: datesError } = await supabase
+      .from('daily_tasks')
+      .select('date')
+      .not('date', 'is', null)
+      .order('date', { ascending: false })
+      .range(page * limit, (page + 1) * limit - 1);
+    
+    if (datesError) throw datesError;
+    
+    const uniqueDates = [...new Set(dates?.map(d => d.date) || [])];
+    
+    if (uniqueDates.length === 0) {
+      return { logs: [] };
+    }
+    
+    // Fetch all tasks for these dates
+    const { data: tasks, error: tasksError } = await supabase
+      .from('daily_tasks')
+      .select('*')
+      .in('date', uniqueDates)
+      .order('created_at', { ascending: false });
+    
+    if (tasksError) throw tasksError;
+    
+    // Group tasks by date
+    const groupedByDate = (tasks || []).reduce((acc: any, task: any) => {
+      const date = task.date;
+      if (!acc[date]) {
+        acc[date] = {
+          date,
+          tasks: [],
+          completionRate: 0
+        };
+      }
+      acc[date].tasks.push(task);
+      return acc;
+    }, {});
+    
+    // Calculate completion rates and sort by date
+    const logs = uniqueDates.map(date => {
+      const log = groupedByDate[date];
+      const completed = log.tasks.filter((t: any) => t.completed).length;
+      const total = log.tasks.length;
+      log.completionRate = total > 0 ? (completed / total) * 100 : 0;
+      return log;
+    });
+    
+    return { logs };
+  }
+
   async createTask(taskData: any) {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase

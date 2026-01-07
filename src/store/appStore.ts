@@ -769,7 +769,6 @@ export const useAppStore = create<AppState>()(
         try {
           const result = await apiService.createTask({
             title: payload.title,
-            description: payload.description,
             date: payload.date || new Date().toISOString().split('T')[0]
           });
           
