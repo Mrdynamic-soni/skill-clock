@@ -147,6 +147,20 @@ class SupabaseService {
     return { entries: data };
   }
 
+  // Get entries for a specific goal (filtered by skill_id and goal creation date)
+  async getEntriesForGoal(goal: { skillId: string; createdAt: string }) {
+    const goalCreatedDate = goal.createdAt ? goal.createdAt.split("T")[0] : null;
+    const params: any = {
+      skill_id: goal.skillId,
+    };
+    
+    if (goalCreatedDate) {
+      params.start_date = goalCreatedDate;
+    }
+    
+    return this.getEntries(params);
+  }
+
   async createEntry(entryData: any) {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase

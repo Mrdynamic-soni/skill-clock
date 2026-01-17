@@ -119,15 +119,29 @@ export const Goals = () => {
     setShowForm(true);
   };
 
-  const getTodayHours = (skillId: string) => {
+  const getGoalEntries = (goal: any) => {
+    const goalCreatedDate = goal.createdAt ? goal.createdAt.split("T")[0] : null;
+    return entries.filter((entry) => {
+      const matchesSkill = entry.skillId === goal.skillId;
+      const matchesGoalDate = !goalCreatedDate || entry.date >= goalCreatedDate;
+      return matchesSkill && matchesGoalDate;
+    });
+  };
+
+  const getTodayHours = (skillId: string, goalCreatedAt?: string) => {
     const today = new Date().toISOString().split("T")[0];
     return entries
-      .filter((entry) => entry.skillId === skillId && entry.date === today)
+      .filter((entry) => {
+        const matchesSkill = entry.skillId === skillId;
+        const matchesDate = entry.date === today;
+        const matchesGoalDate = !goalCreatedAt || entry.date >= goalCreatedAt.split("T")[0];
+        return matchesSkill && matchesDate && matchesGoalDate;
+      })
       .reduce((sum, entry) => sum + entry.hours, 0);
   };
 
   const getDailyStatus = (goal: any) => {
-    const todayHours = getTodayHours(goal.skillId);
+    const todayHours = getTodayHours(goal.skillId, goal.createdAt);
     const dailyTarget = goal.dailyTarget || 0;
 
     if (todayHours >= dailyTarget * GOAL_PROGRESS_THRESHOLDS.DAILY_EXCELLENT) return "excellent";
@@ -137,9 +151,7 @@ export const Goals = () => {
   };
 
   const getProgressForGoal = (goal: any) => {
-    const skillEntries = entries.filter(
-      (entry) => entry.skillId === goal.skillId
-    );
+    const skillEntries = getGoalEntries(goal);
     const totalHours = skillEntries.reduce(
       (sum, entry) => sum + entry.hours,
       0
@@ -205,7 +217,8 @@ export const Goals = () => {
     const progress = getProgressForGoal(goal);
     
     if (progress < 100) {
-      const remainingHours = (goal.targetHours - entries.filter(e => e.skillId === goal.skillId).reduce((sum, e) => sum + e.hours, 0)).toFixed(1);
+      const goalEntries = getGoalEntries(goal);
+      const remainingHours = (goal.targetHours - goalEntries.reduce((sum, e) => sum + e.hours, 0)).toFixed(1);
       alert(GOAL_MESSAGES.INCOMPLETE_GOAL(parseFloat(remainingHours)));
       return;
     }
@@ -500,10 +513,11 @@ export const Goals = () => {
           >
             <h3 className="text-lg font-semibold mb-4">{GOAL_MESSAGES.COMPLETION.title}</h3>
             <p className="text-gray-600 mb-4">
-              {completingGoal && GOAL_MESSAGES.COMPLETION.message(
-                completingGoal.title,
-                Number(entries.filter(e => e.skillId === completingGoal.skillId).reduce((sum, e) => sum + e.hours, 0).toFixed(1))
-              )}
+              {completingGoal && (() => {
+                const goalEntries = getGoalEntries(completingGoal);
+                const totalHours = Number(goalEntries.reduce((sum, e) => sum + e.hours, 0).toFixed(1));
+                return GOAL_MESSAGES.COMPLETION.message(completingGoal.title, totalHours);
+              })()}
             </p>
             <p className="text-gray-600 mb-4">
               {GOAL_MESSAGES.COMPLETION.notePrompt}
@@ -558,7 +572,7 @@ export const Goals = () => {
             const progress = getProgressForGoal(goal);
 
             const dailyStatus = getDailyStatus(goal);
-            const todayHours = getTodayHours(goal.skillId);
+            const todayHours = getTodayHours(goal.skillId, goal.createdAt);
 
             return (
               <motion.div
@@ -685,8 +699,7 @@ export const Goals = () => {
                             Overall Progress
                           </span>
                           <span className="text-xs font-bold text-gray-700">
-                            {entries
-                              .filter((e) => e.skillId === goal.skillId)
+                            {getGoalEntries(goal)
                               .reduce((sum, e) => sum + e.hours, 0)
                               .toFixed(1)}
                             h / {goal.targetHours}h ({progress.toFixed(1)}%)
@@ -767,8 +780,7 @@ export const Goals = () => {
                     <div className="pt-2 border-t border-gray-200">
                       <div className="flex justify-between text-xs text-gray-500">
                         <span>
-                          {entries
-                            .filter((e) => e.skillId === goal.skillId)
+                          {getGoalEntries(goal)
                             .reduce((sum, e) => sum + e.hours, 0)
                             .toFixed(1)}
                           h of {goal.targetHours}h total
